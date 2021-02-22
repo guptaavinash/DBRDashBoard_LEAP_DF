@@ -83,19 +83,19 @@
 			"type": "string",
 			"defaultValue": "@trigger().scheduledTime"
 		},
-		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
-		},
 		"LeapFileLoding_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
 		},
 		"LeapFileLoding_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd": {
+			"type": "string",
+			"defaultValue": "@trigger().scheduledTime"
+		},
+		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart": {
+			"type": "string",
+			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
+		},
+		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd": {
 			"type": "string",
 			"defaultValue": "@trigger().scheduledTime"
 		}
@@ -21295,10 +21295,6 @@
 											}
 										},
 										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
 										"dataIntegrationUnits": 2
 									},
 									"inputs": [
@@ -21512,10 +21508,6 @@
 											}
 										},
 										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
 										"dataIntegrationUnits": 2
 									},
 									"inputs": [
@@ -21729,10 +21721,6 @@
 											}
 										},
 										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
 										"dataIntegrationUnits": 2
 									},
 									"inputs": [
@@ -24534,6 +24522,101 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutLoading')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyLeapStaging-To-ADLS",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Copy S3 to Staging",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeapStaging-To-ADLS",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Delete Staging Files",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "CopyLeapStaging-To-ADLS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					},
+					{
+						"name": "Copy S3 to Staging",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/CopyLeapStaging-To-ADLS')]",
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutProcessing')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -25842,6 +25925,129 @@
 				"[concat(variables('factoryId'), '/datasets/TASDBConnection')]",
 				"[concat(variables('factoryId'), '/pipelines/Productmasterprocessing')]",
 				"[concat(variables('factoryId'), '/pipelines/Send Notification')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutProcessingandADLSMovement')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyLeap_Staging-To-DB_WithDPSR",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpDeleteOldtmpleapdata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeap_Staging-To-DB_WithDPSR",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "SpDeleteOldtmpleapdata",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[SpDeleteOLDDatafromtmpleaptables]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "CopyLeap_Staging-To-DB_2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "CopyLeap_Staging-To-DB_WithDPSR",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeap_Staging-To-DB_2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Delete Staging Files",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "CopyLeap_Staging-To-DB_2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_WithDPSR')]",
+				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_2')]",
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
 			]
 		},
 		{
@@ -42185,6 +42391,10 @@
 					"location": {
 						"type": "AzureBlobStorageLocation",
 						"container": "leaptemp"
+					},
+					"compression": {
+						"type": "gzip",
+						"level": "Optimal"
 					}
 				}
 			},
@@ -45015,6 +45225,39 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapFileLoding_WithoutProcessing')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataMovement_WithoutLoading",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"windowStart": "[parameters('LeapFileLoding_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart')]",
+							"windowEnd": "[parameters('LeapFileLoding_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-02-22T07:00:00Z",
+						"timeZone": "UTC"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataMovement_WithoutLoading')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/S3LEAPFileTransfer')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -45039,8 +45282,7 @@
 						"frequency": "Day",
 						"interval": 1,
 						"startTime": "2021-02-18T09:30:00",
-						"timeZone": "India Standard Time",
-						"schedule": {}
+						"timeZone": "India Standard Time"
 					}
 				}
 			},
@@ -45084,258 +45326,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/Scaledb')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutLoading')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Copy S3 to Staging",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeapStaging-To-ADLS",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Delete Staging Files",
-						"type": "Delete",
-						"dependsOn": [
-							{
-								"activity": "CopyLeapStaging-To-ADLS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "LeapStorageSourceDataset",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"enableLogging": false,
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							}
-						}
-					},
-					{
-						"name": "Copy S3 to Staging",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/CopyLeapStaging-To-ADLS')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]",
-				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapFileLoding_WithoutProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataMovement_WithoutLoading",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('LeapFileLoding_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart')]",
-							"windowEnd": "[parameters('LeapFileLoding_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-02-22T07:00:00Z",
-						"timeZone": "UTC",
-						"schedule": {}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataMovement_WithoutLoading')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutProcessingandADLSMovement')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeap_Staging-To-DB_WithDPSR",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpDeleteOldtmpleapdata",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_WithDPSR",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "SpDeleteOldtmpleapdata",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[SpDeleteOLDDatafromtmpleaptables]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_WithDPSR",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Delete Staging Files",
-						"type": "Delete",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "LeapStorageSourceDataset",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"enableLogging": false,
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							}
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_WithDPSR')]",
-				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
-				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_2')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
 			]
 		}
 	]
