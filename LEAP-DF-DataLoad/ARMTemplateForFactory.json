@@ -552,6 +552,88 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyADLS_To_LEAPStaging')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyLeapStaging-To-ADLS",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"dataIntegrationUnits": 2
+						},
+						"inputs": [
+							{
+								"referenceName": "ADLSDataset_Copy",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": {
+										"value": "@pipeline().parameters.Directory",
+										"type": "Expression"
+									},
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "LeapStorageSourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"parameters": {
+					"Container": {
+						"type": "string"
+					},
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-09-10T06:17:28Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ADLSDataset_Copy')]",
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -26012,7 +26094,7 @@
 						"type": "Delete",
 						"dependsOn": [
 							{
-								"activity": "CopyLeap_Staging-To-DB_2",
+								"activity": "CopyLeapStaging-To-ADLS",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -26039,6 +26121,27 @@
 								"enablePartitionDiscovery": false
 							}
 						}
+					},
+					{
+						"name": "CopyLeapStaging-To-ADLS",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "CopyLeap_Staging-To-DB_2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeapStaging-To-ADLS",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"parameters": {
@@ -26059,7 +26162,8 @@
 				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_WithDPSR')]",
 				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
 				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_2')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyLeapStaging-To-ADLS')]"
 			]
 		},
 		{
@@ -45334,88 +45438,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/Scaledb')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyADLS_To_LEAPStaging')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "ADLSDataset_Copy",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Container",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"parameters": {
-					"Container": {
-						"type": "string"
-					},
-					"Directory": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ADLSDataset_Copy')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
 			]
 		}
 	]
