@@ -79,6 +79,26 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'sasUri' of 'dfdatafoundationLink'"
 		},
+		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart": {
+			"type": "string",
+			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
+		},
+		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd": {
+			"type": "string",
+			"defaultValue": "@trigger().scheduledTime"
+		},
+		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate": {
+			"type": "string",
+			"defaultValue": "formatDateTime(utcNow('yyyy-MM-dd'))"
+		},
+		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container": {
+			"type": "string",
+			"defaultValue": "cntleap"
+		},
+		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory": {
+			"type": "string",
+			"defaultValue": "@concat('/', formatDateTime(@trigger().scheduledTime, 'yyyy'), '/', formatDateTime(@trigger().scheduledTime, 'MM'), '/', formatDateTime(@trigger().scheduledTime, 'dd'), '/')"
+		},
 		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
@@ -110,26 +130,6 @@
 		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd": {
 			"type": "string",
 			"defaultValue": "@trigger().scheduledTime"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "formatDateTime(utcNow('yyyy-MM-dd'))"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container": {
-			"type": "string",
-			"defaultValue": "cntleap"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory": {
-			"type": "string",
-			"defaultValue": "@concat('/', formatDateTime(@trigger().scheduledTime, 'yyyy'), '/', formatDateTime(@trigger().scheduledTime, 'MM'), '/', formatDateTime(@trigger().scheduledTime, 'dd'), '/')"
 		}
 	},
 	"variables": {
@@ -39486,6 +39486,33 @@
 										"referenceName": "DataFoundationDB",
 										"type": "LinkedServiceReference"
 									}
+								},
+								{
+									"name": "spExecuteSUBDDailySP",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "CopyNCS_ASTIX_To_DF",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spExecuteSUBDDailySP]"
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
 								}
 							]
 						}
@@ -55914,6 +55941,50 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataMovementDaily",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"windowStart": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart')]",
+							"windowEnd": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd')]",
+							"DataProcessDate": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate')]",
+							"Container": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container')]",
+							"Directory": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-03-10T16:00:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								7
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataMovementDaily')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_At6')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -56131,50 +56202,6 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataMovementDaily",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart')]",
-							"windowEnd": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd')]",
-							"DataProcessDate": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate')]",
-							"Container": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container')]",
-							"Directory": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-03-10T16:00:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								15
-							],
-							"hours": [
-								18
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataMovementDaily')]"
-			]
 		}
 	]
 }
