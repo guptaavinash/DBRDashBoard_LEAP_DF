@@ -516,14 +516,14 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DFDataProcessAfterLoading')]",
+			"name": "[concat(parameters('factoryName'), '/AS_CubeProcess_RESTAPI')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "spExecuteOlapDimTable",
-						"type": "SqlServerStoredProcedure",
+						"name": "AS_CubeProcess_ActivityAPI",
+						"type": "WebActivity",
 						"dependsOn": [],
 						"policy": {
 							"timeout": "7.00:00:00",
@@ -534,99 +534,26 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spExecuteOlapDimTable]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spExecuteOlapFactTables",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spExecuteOlapDimTable",
-								"dependencyConditions": [
-									"Succeeded"
-								]
+							"url": "https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/sync",
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://*.asazure.windows.net"
 							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spExecuteOlapFactTables]",
-							"storedProcedureParameters": {
-								"DMinus1Date": {
-									"value": {
-										"value": "@adddays(pipeline().parameters.DataDate,-1)",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spExecuteDailyAPISp",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spExecuteOlapFactTables",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spExecuteDailyAPISp]",
-							"storedProcedureParameters": {
-								"DMinusOneDate": {
-									"value": {
-										"value": "@adddays(pipeline().parameters.DataDate,-1)",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
 						}
 					}
 				],
-				"parameters": {
-					"DataDate": {
-						"type": "string"
-					}
-				},
 				"folder": {
-					"name": "Leap Data Pipeline"
+					"name": "Resource Management"
 				},
 				"annotations": []
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]"
-			]
+			"dependsOn": []
 		}
 	]
 }
