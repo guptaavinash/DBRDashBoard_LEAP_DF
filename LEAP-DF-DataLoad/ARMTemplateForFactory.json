@@ -211,6 +211,326 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/AS_CubeProcess_Sync')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "AS_CubeProcess_ActivityAPI",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": {
+								"value": "https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/refreshes",
+								"type": "Expression"
+							},
+							"method": "POST",
+							"headers": {},
+							"body": {
+								"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"DSR Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Location Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Channel Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Store Master\"},{\"database\":\"PG_DMS\",\"table\":\"Product Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Date\"},{\"database\":\"PG_DMS\",\"table\":\"SRN Reason\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactSalesDetail\",\"partition\":\"PartitionCurrentQuarter_FactSalesDetails\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCoverage\",\"partition\":\"PartitionCurrentQuarter_FactCoverage\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCoverageStoreLvl\",\"partition\":\"PartitionCurrentQuarter_FactCoverageStoreLvl\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCoverageLPB\",\"partition\":\"PartitionCurrentQuarter_FactCoverageLPB\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactARData\",\"partition\":\"PartitionCurrentQuarter_FactARData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactFocusBrandData\",\"partition\":\"PartitionCurrentQuarter_FactFocusBrandData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactInventory\",\"partition\":\"PartitionCurrentQuarter_FactInventory\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactSBDData\",\"partition\":\"PartitionCurrentQuarter_FactSBDData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactStoreLvlSBDData\",\"partition\":\"PartitionCurrentQuarter_FactStoreLvlSBDData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactTargetData\",\"partition\":\"PartitionCurrentQuarter_FactTargetData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactOrderData\",\"partition\":\"PartitionCurrentQuarter_FactOrderData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactWorkingDays\",\"partition\":\"Partition\"}]}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://*.asazure.windows.net"
+							}
+						}
+					},
+					{
+						"name": "GetRefreshId",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_ActivityAPI",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": {
+								"value": "https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/refreshes",
+								"type": "Expression"
+							},
+							"method": "GET",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"body": {
+								"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://*.asazure.windows.net"
+							}
+						}
+					},
+					{
+						"name": "Set Array VarOuter",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "GetRefreshId",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "ArrayVar",
+							"value": {
+								"value": "@json(activity('GetRefreshId').output.Response)\n",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Set Status variableOuter",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Set Array VarOuter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "status",
+							"value": {
+								"value": "@variables('ArrayVar')[0].status",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Set RefreshId variable",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Set Status variableOuter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "RefreshId",
+							"value": {
+								"value": "@variables('ArrayVar')[0].refreshId",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Set RefreshId variable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@not(equals(variables('status'),'inProgress'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "CubeProcessingCheck",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"url": {
+											"value": "@concat('https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/refreshes/',variables('RefreshId'))",
+											"type": "Expression"
+										},
+										"method": "GET",
+										"headers": {
+											"Content-Type": "application/json"
+										},
+										"body": {
+											"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://*.asazure.windows.net"
+										}
+									}
+								},
+								{
+									"name": "Set Array VarOuter_copy1",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "CubeProcessingCheck",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "status",
+										"value": {
+											"value": "@activity('CubeProcessingCheck').output.status",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Set Array VarOuter_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(variables('status'),'inProgress')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Wait5min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 300
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					},
+					{
+						"name": "If Condition1_copy1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Until1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@not(equals(variables('status'),'succeeded'))",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Send Notification_copy1",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Send Notification",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"EmailTo": "avinash@astix.in,ashwani@astix.in,alok@astix.in",
+											"Subject": "Cube Processing Successful",
+											"ErrorMessage": "DataFoundation Cube Processing Success"
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Send Notification",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Send Notification",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"EmailTo": "avinash@astix.in,ashwani@astix.in,alok@astix.in",
+											"Subject": "Cube Processing Not Successful",
+											"ErrorMessage": "DataFoundation Cube Processing Fails"
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"variables": {
+					"ArrayVar": {
+						"type": "Array",
+						"defaultValue": [
+							"test"
+						]
+					},
+					"status": {
+						"type": "String",
+						"defaultValue": "inProgress"
+					},
+					"RefreshId": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Send Notification')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/AS_Pause')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -30250,6 +30570,181 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud1_NoDelete')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Cloud1FilesMetaData",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "S3LeapDataSet_Cloud1_Folder",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"itemName",
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AmazonS3ReadSettings",
+								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Cloud1FilesFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Cloud1FilesMetaData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud1FilesMetaData').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachCloud1FolderFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Cloud1FilesFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud1FilesFilter').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "LeapCSV_Cloud1_Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AmazonS3ReadSettings",
+												"recursive": true,
+												"modifiedDatetimeStart": {
+													"value": "@pipeline().parameters.windowStart",
+													"type": "Expression"
+												},
+												"modifiedDatetimeEnd": {
+													"value": "@pipeline().parameters.windowEnd",
+													"type": "Expression"
+												}
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 2
+									},
+									"inputs": [
+										{
+											"referenceName": "S3LeapDataSet_Cloud1_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:38:58Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud1_Folder')]",
+				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud1_File')]",
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -30467,6 +30962,178 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud2_NoDelete')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Cloud2FilesMetaData",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "S3LeapDataSet_Cloud2_Folder",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"itemName",
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AmazonS3ReadSettings",
+								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Cloud2FilesFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Cloud2FilesMetaData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud2FilesMetaData').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachCloud2FolderFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Cloud2FilesFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud2FilesFilter').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "LeapCSV_Cloud2_Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AmazonS3ReadSettings",
+												"recursive": true,
+												"modifiedDatetimeStart": {
+													"value": "@pipeline().parameters.windowStart",
+													"type": "Expression"
+												},
+												"modifiedDatetimeEnd": {
+													"value": "@pipeline().parameters.windowEnd",
+													"type": "Expression"
+												}
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 2
+									},
+									"inputs": [
+										{
+											"referenceName": "S3LeapDataSet_Cloud2_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-05-29T19:10:03Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud2_Folder')]",
+				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud2_File')]",
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -30681,6 +31348,247 @@
 				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud3_File')]",
 				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]",
 				"[concat(variables('factoryId'), '/linkedServices/NCSdataStorageLink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3_NoDelete')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Cloud3FilesMetaData",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "S3LeapDataSet_Cloud3_Folder",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"itemName",
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AmazonS3ReadSettings",
+								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Cloud3FilesFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Cloud3FilesMetaData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud3FilesMetaData').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachCloud3FolderFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Cloud3FilesFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud3FilesFilter').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "LeapCSV_Cloud3_Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AmazonS3ReadSettings",
+												"recursive": true,
+												"modifiedDatetimeStart": {
+													"value": "@pipeline().parameters.windowStart",
+													"type": "Expression"
+												},
+												"modifiedDatetimeEnd": {
+													"value": "@pipeline().parameters.windowEnd",
+													"type": "Expression"
+												}
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 2
+									},
+									"inputs": [
+										{
+											"referenceName": "S3LeapDataSet_Cloud3_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-05-29T19:10:03Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud3_Folder')]",
+				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud3_File')]",
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_NoDelete')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyS3-To-Staging_Cloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging_Cloud1_NoDelete",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CopyS3-To-Staging_Cloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging_Cloud2_NoDelete",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CopyS3-To-Staging_Cloud3",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging_Cloud3_NoDelete",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-06-01T01:07:46Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging_Cloud1_NoDelete')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging_Cloud2_NoDelete')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging_Cloud3_NoDelete')]"
 			]
 		},
 		{
@@ -33357,7 +34265,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "DFDataProcessAfterLoading",
+								"activity": "Wait1",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -33371,6 +34279,43 @@
 							},
 							"waitOnCompletion": true,
 							"parameters": {}
+						}
+					},
+					{
+						"name": "AS_Resume",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DFDataProcessAfterLoading",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Resume",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Wait1",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "AS_Resume",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 300
 						}
 					}
 				],
@@ -33408,7 +34353,8 @@
 				"[concat(variables('factoryId'), '/pipelines/DFDataProcessAfterLoading')]",
 				"[concat(variables('factoryId'), '/pipelines/DW_Scale')]",
 				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]",
-				"[concat(variables('factoryId'), '/pipelines/AS_CubeProcess_Sync')]"
+				"[concat(variables('factoryId'), '/pipelines/AS_CubeProcess_Sync')]",
+				"[concat(variables('factoryId'), '/pipelines/AS_Resume')]"
 			]
 		},
 		{
@@ -63069,7 +64015,7 @@
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"annotations": [],
-				"runtimeState": "Started",
+				"runtimeState": "Stopped",
 				"pipelines": [
 					{
 						"pipelineReference": {
@@ -63264,914 +64210,6 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud1_NoDelete')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Cloud1FilesMetaData",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "S3LeapDataSet_Cloud1_Folder",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"childItems",
-								"itemName",
-								"lastModified"
-							],
-							"storeSettings": {
-								"type": "AmazonS3ReadSettings",
-								"recursive": true,
-								"modifiedDatetimeStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"modifiedDatetimeEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								}
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "Cloud1FilesFilter",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "Cloud1FilesMetaData",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud1FilesMetaData').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'File')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "ForEachCloud1FolderFiles",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Cloud1FilesFilter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud1FilesFilter').output.value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "LeapCSV_Cloud1_Staging",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "BinarySource",
-											"storeSettings": {
-												"type": "AmazonS3ReadSettings",
-												"recursive": true,
-												"modifiedDatetimeStart": {
-													"value": "@pipeline().parameters.windowStart",
-													"type": "Expression"
-												},
-												"modifiedDatetimeEnd": {
-													"value": "@pipeline().parameters.windowEnd",
-													"type": "Expression"
-												}
-											},
-											"formatSettings": {
-												"type": "BinaryReadSettings"
-											}
-										},
-										"sink": {
-											"type": "BinarySink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
-										"dataIntegrationUnits": 2
-									},
-									"inputs": [
-										{
-											"referenceName": "S3LeapDataSet_Cloud1_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapStorageSourceDataset",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-17T07:38:58Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud1_Folder')]",
-				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud1_File')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud2_NoDelete')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Cloud2FilesMetaData",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "S3LeapDataSet_Cloud2_Folder",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"childItems",
-								"itemName",
-								"lastModified"
-							],
-							"storeSettings": {
-								"type": "AmazonS3ReadSettings",
-								"recursive": true,
-								"modifiedDatetimeStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"modifiedDatetimeEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								}
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "Cloud2FilesFilter",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "Cloud2FilesMetaData",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud2FilesMetaData').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'File')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "ForEachCloud2FolderFiles",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Cloud2FilesFilter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud2FilesFilter').output.value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "LeapCSV_Cloud2_Staging",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "BinarySource",
-											"storeSettings": {
-												"type": "AmazonS3ReadSettings",
-												"recursive": true,
-												"modifiedDatetimeStart": {
-													"value": "@pipeline().parameters.windowStart",
-													"type": "Expression"
-												},
-												"modifiedDatetimeEnd": {
-													"value": "@pipeline().parameters.windowEnd",
-													"type": "Expression"
-												}
-											}
-										},
-										"sink": {
-											"type": "BinarySink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
-										"dataIntegrationUnits": 2
-									},
-									"inputs": [
-										{
-											"referenceName": "S3LeapDataSet_Cloud2_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapStorageSourceDataset",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-05-29T19:10:03Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud2_Folder')]",
-				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud2_File')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3_NoDelete')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Cloud3FilesMetaData",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "S3LeapDataSet_Cloud3_Folder",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"childItems",
-								"itemName",
-								"lastModified"
-							],
-							"storeSettings": {
-								"type": "AmazonS3ReadSettings",
-								"recursive": true,
-								"modifiedDatetimeStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"modifiedDatetimeEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								}
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "Cloud3FilesFilter",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "Cloud3FilesMetaData",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud3FilesMetaData').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'File')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "ForEachCloud3FolderFiles",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Cloud3FilesFilter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud3FilesFilter').output.value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "LeapCSV_Cloud3_Staging",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "BinarySource",
-											"storeSettings": {
-												"type": "AmazonS3ReadSettings",
-												"recursive": true,
-												"modifiedDatetimeStart": {
-													"value": "@pipeline().parameters.windowStart",
-													"type": "Expression"
-												},
-												"modifiedDatetimeEnd": {
-													"value": "@pipeline().parameters.windowEnd",
-													"type": "Expression"
-												}
-											}
-										},
-										"sink": {
-											"type": "BinarySink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
-										"dataIntegrationUnits": 2
-									},
-									"inputs": [
-										{
-											"referenceName": "S3LeapDataSet_Cloud3_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapStorageSourceDataset",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-05-29T19:10:03Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud3_Folder')]",
-				"[concat(variables('factoryId'), '/datasets/S3LeapDataSet_Cloud3_File')]",
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_NoDelete')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyS3-To-Staging_Cloud1",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud1_NoDelete",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "CopyS3-To-Staging_Cloud2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud2_NoDelete",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "CopyS3-To-Staging_Cloud3",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud3_NoDelete",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-06-01T01:07:46Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging_Cloud1_NoDelete')]",
-				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging_Cloud2_NoDelete')]",
-				"[concat(variables('factoryId'), '/pipelines/CopyS3-To-Staging_Cloud3_NoDelete')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/AS_CubeProcess_Sync')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "AS_CubeProcess_ActivityAPI",
-						"type": "WebActivity",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"url": {
-								"value": "https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/refreshes",
-								"type": "Expression"
-							},
-							"method": "POST",
-							"headers": {},
-							"body": {
-								"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"DSR Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Location Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Channel Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Store Master\"},{\"database\":\"PG_DMS\",\"table\":\"Product Hierarchy\"},{\"database\":\"PG_DMS\",\"table\":\"Date\"},{\"database\":\"PG_DMS\",\"table\":\"SRN Reason\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactSalesDetail\",\"partition\":\"PartitionCurrentQuarter_FactSalesDetails\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCoverage\",\"partition\":\"PartitionCurrentQuarter_FactCoverage\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCoverageStoreLvl\",\"partition\":\"PartitionCurrentQuarter_FactCoverageStoreLvl\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCoverageLPB\",\"partition\":\"PartitionCurrentQuarter_FactCoverageLPB\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactARData\",\"partition\":\"PartitionCurrentQuarter_FactARData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactFocusBrandData\",\"partition\":\"PartitionCurrentQuarter_FactFocusBrandData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactInventory\",\"partition\":\"PartitionCurrentQuarter_FactInventory\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactSBDData\",\"partition\":\"PartitionCurrentQuarter_FactSBDData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactStoreLvlSBDData\",\"partition\":\"PartitionCurrentQuarter_FactStoreLvlSBDData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactTargetData\",\"partition\":\"PartitionCurrentQuarter_FactTargetData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactOrderData\",\"partition\":\"PartitionCurrentQuarter_FactOrderData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactWorkingDays\",\"partition\":\"Partition\"}]}",
-								"type": "Expression"
-							},
-							"authentication": {
-								"type": "MSI",
-								"resource": "https://*.asazure.windows.net"
-							}
-						}
-					},
-					{
-						"name": "GetRefreshId",
-						"type": "WebActivity",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_ActivityAPI",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"url": {
-								"value": "https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/refreshes",
-								"type": "Expression"
-							},
-							"method": "GET",
-							"headers": {
-								"Content-Type": "application/json"
-							},
-							"body": {
-								"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
-								"type": "Expression"
-							},
-							"authentication": {
-								"type": "MSI",
-								"resource": "https://*.asazure.windows.net"
-							}
-						}
-					},
-					{
-						"name": "Set Array VarOuter",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "GetRefreshId",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "ArrayVar",
-							"value": {
-								"value": "@json(activity('GetRefreshId').output.Response)\n",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "Set Status variableOuter",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "Set Array VarOuter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "status",
-							"value": {
-								"value": "@variables('ArrayVar')[0].status",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "Set RefreshId variable",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "Set Status variableOuter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "RefreshId",
-							"value": {
-								"value": "@variables('ArrayVar')[0].refreshId",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "Until1",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Set RefreshId variable",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@not(equals(variables('status'),'inProgress'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CubeProcessingCheck",
-									"type": "WebActivity",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"url": {
-											"value": "@concat('https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DMS/refreshes/',variables('RefreshId'))",
-											"type": "Expression"
-										},
-										"method": "GET",
-										"headers": {
-											"Content-Type": "application/json"
-										},
-										"body": {
-											"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
-											"type": "Expression"
-										},
-										"authentication": {
-											"type": "MSI",
-											"resource": "https://*.asazure.windows.net"
-										}
-									}
-								},
-								{
-									"name": "Set Array VarOuter_copy1",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "CubeProcessingCheck",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "status",
-										"value": {
-											"value": "@activity('CubeProcessingCheck').output.status",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "If Condition1",
-									"type": "IfCondition",
-									"dependsOn": [
-										{
-											"activity": "Set Array VarOuter_copy1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@equals(variables('status'),'inProgress')",
-											"type": "Expression"
-										},
-										"ifTrueActivities": [
-											{
-												"name": "Wait5min",
-												"type": "Wait",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"waitTimeInSeconds": 300
-												}
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "If Condition1_copy1",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "Until1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@not(equals(variables('status'),'succeeded'))",
-								"type": "Expression"
-							},
-							"ifFalseActivities": [
-								{
-									"name": "Send Notification_copy1",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "Send Notification",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"EmailTo": "avinash@astix.in,ashwani@astix.in,alok@astix.in",
-											"Subject": "Cube Processing Successful",
-											"ErrorMessage": "DataFoundation Cube Processing Success"
-										}
-									}
-								}
-							],
-							"ifTrueActivities": [
-								{
-									"name": "Send Notification",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "Send Notification",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"EmailTo": "avinash@astix.in,ashwani@astix.in,alok@astix.in",
-											"Subject": "Cube Processing Not Successful",
-											"ErrorMessage": "DataFoundation Cube Processing Fails"
-										}
-									}
-								}
-							]
-						}
-					}
-				],
-				"variables": {
-					"ArrayVar": {
-						"type": "Array",
-						"defaultValue": [
-							"test"
-						]
-					},
-					"status": {
-						"type": "String",
-						"defaultValue": "inProgress"
-					},
-					"RefreshId": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "Resource Management"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/Send Notification')]"
-			]
 		}
 	]
 }
