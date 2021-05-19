@@ -34,16 +34,161 @@
 		"NCSSUBDDataLoadingFromAstixServer_Day_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
 			"type": "int",
 			"defaultValue": 1
-		},
-		"NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
-			"type": "int",
-			"defaultValue": 2
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level3')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFoldername",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Container",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFoldername",
+						"description": "Iterate each folder and find the folder or file inside it.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFolder",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFolder').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "inner folder loop",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "MoveADLS-To-dfdatafoundation_Level4",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceStore_Container": {
+												"value": "@pipeline().parameters.SourceStore_Container",
+												"type": "Expression"
+											},
+											"SourceStore_Directory": {
+												"value": "@concat(pipeline().parameters.SourceStore_Directory, item().name ,'/')\n\n",
+												"type": "Expression"
+											},
+											"DestinationStore_Container": {
+												"value": "@pipeline().parameters.DestinationStore_Container",
+												"type": "Expression"
+											},
+											"DestinationStore_Directory": {
+												"value": "@pipeline().parameters.DestinationStore_Directory",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFolder",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFoldername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFoldername').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'Folder')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"parameters": {
+					"SourceStore_Container": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Container": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:01Z"
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -1536,7 +1681,9 @@
 				"annotations": [],
 				"lastPublishTime": "2021-02-17T07:39:03Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MoveADLS-To-dfdatafoundation_Level3')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/NCSDataTransfer-ASTIX-TO-DF')]",
@@ -2161,7 +2308,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "AS_CubeProcess_Sync",
+								"activity": "AS_CubeProcess_Sync_Fact",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -2201,7 +2348,7 @@
 						}
 					},
 					{
-						"name": "AS_CubeProcess_Sync",
+						"name": "AS_CubeProcess_Sync_Dim",
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
@@ -2214,7 +2361,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync",
+								"referenceName": "AS_CubeProcess_Sync_Dim",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -2256,6 +2403,27 @@
 						"userProperties": [],
 						"typeProperties": {
 							"waitTimeInSeconds": 300
+						}
+					},
+					{
+						"name": "AS_CubeProcess_Sync_Fact",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_Sync_Dim",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_CubeProcess_Sync_Fact",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
 						}
 					}
 				],
@@ -2517,46 +2685,6 @@
 						"interval": 1,
 						"startTime": "2021-03-10T14:00:00",
 						"timeZone": "India Standard Time"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/NCSDataTransfer-ASTIX-TO-DF')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NCSSUBDDataLoadingFromAstixServer_Night')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "NCSDataTransfer-ASTIX-TO-DF",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"ProcessingType": "[parameters('NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-03-10T04:00:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0
-							],
-							"hours": [
-								6
-							]
-						}
 					}
 				}
 			},
