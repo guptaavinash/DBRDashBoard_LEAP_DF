@@ -1,0 +1,267 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "LEAP-DF-DataLoad"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/PnGExternalDataCopy')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "tmpDataForrakesh_table",
+								"type": "DatasetReference"
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "tmpDataForrakesh_File",
+								"type": "DatasetReference"
+							}
+						]
+					}
+				],
+				"folder": {
+					"name": "PnGExternalData"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/tmpDataForrakesh_table')]",
+				"[concat(variables('factoryId'), '/datasets/tmpDataForrakesh_File')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/tmpDataForrakesh_table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "DataFoundationDB",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "DF_DBConnection/LEAP Tables"
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [
+					{
+						"name": "DBRName",
+						"type": "varchar"
+					},
+					{
+						"name": "BranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "BranchName",
+						"type": "varchar"
+					},
+					{
+						"name": "TranType",
+						"type": "varchar"
+					},
+					{
+						"name": "InvDate",
+						"type": "date"
+					},
+					{
+						"name": "storeCode",
+						"type": "varchar"
+					},
+					{
+						"name": "ChannelName",
+						"type": "varchar"
+					},
+					{
+						"name": "StoreTypeName",
+						"type": "varchar"
+					},
+					{
+						"name": "SBF",
+						"type": "varchar"
+					},
+					{
+						"name": "SKUCode",
+						"type": "varchar"
+					},
+					{
+						"name": "Line_Gross_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Discount_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Taxable_Scheme_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_CGST_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_SGST_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_IGST_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_CESS_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Net_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Tax_on_Discount_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Tax_on_Scheme_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Tax_on_RLP_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Retailing_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "Line_Gross_in_SLP_Val",
+						"type": "decimal",
+						"precision": 38,
+						"scale": 2
+					},
+					{
+						"name": "quantity",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "UPC",
+						"type": "float",
+						"precision": 15
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tmpDataForrakesh"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/tmpDataForrakesh_File')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "dfdatafoundationLink",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "FileConnection"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": "DBRData",
+						"container": "pngdbrdata"
+					},
+					"columnDelimiter": "|",
+					"compressionCodec": "ZipDeflate",
+					"compressionLevel": "Fastest",
+					"escapeChar": "\\",
+					"firstRowAsHeader": false,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		}
+	]
+}
