@@ -3098,7 +3098,14 @@
 					{
 						"name": "DataDatetime",
 						"type": "SetVariable",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "DeleteDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "TimeToday",
@@ -3107,10 +3114,60 @@
 								"type": "Expression"
 							}
 						}
+					},
+					{
+						"name": "DeleteDate",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "DataDeleteDate",
+							"value": {
+								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),7,'Day'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "DeleteAllFilesinFolder",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Copy ProdMaster",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DeleteAllFilesinFolder",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Containername": {
+									"value": "apidatacontainer",
+									"type": "Expression"
+								},
+								"Foldername": {
+									"value": "@{concat(formatDateTime(variables('DataDeleteDate'), 'yyyy'), '/', formatDateTime(variables('DataDeleteDate'), 'MM'), '/', formatDateTime(variables('DataDeleteDate'), 'dd'))}",
+									"type": "Expression"
+								},
+								"DataDeleteDate": {
+									"value": "@variables('DataDeleteDate')",
+									"type": "Expression"
+								}
+							}
+						}
 					}
 				],
 				"variables": {
 					"TimeToday": {
+						"type": "String"
+					},
+					"DataDeleteDate": {
 						"type": "String"
 					}
 				},
@@ -3120,6 +3177,7 @@
 				"[concat(variables('factoryId'), '/datasets/DS_DF_NC_Sales_SUBD')]",
 				"[concat(variables('factoryId'), '/datasets/DS_ProdMaster')]",
 				"[concat(variables('factoryId'), '/datasets/LeapAPIFileDataset')]",
+				"[concat(variables('factoryId'), '/pipelines/DeleteAllFilesinFolder')]",
 				"[concat(variables('factoryId'), '/datasets/DS_tmpAPIExtractDayPSRRawBranch_table')]",
 				"[concat(variables('factoryId'), '/datasets/DS_DayPSRChnlBranch_table')]",
 				"[concat(variables('factoryId'), '/datasets/DS_COSBranch_table')]",
@@ -80598,6 +80656,192 @@
 				"annotations": []
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DeleteAllFilesinFolder')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetAllFiles",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DS_DeletedFolder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.Containername",
+										"type": "Expression"
+									},
+									"Folder": {
+										"value": "@pipeline().parameters.Foldername",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "FilesFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetAllFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetAllFiles').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFolderFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilesFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilesFilter').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "DeleteFiles",
+									"type": "Delete",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "DS_dfdatafoundation",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.Containername",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.Foldername",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"Containername": {
+						"type": "string"
+					},
+					"Foldername": {
+						"type": "string"
+					},
+					"DataDeleteDate": {
+						"type": "string"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_DeletedFolder')]",
+				"[concat(variables('factoryId'), '/datasets/DS_dfdatafoundation')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_DeletedFolder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "dfdatafoundationLink",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Container": {
+						"type": "string"
+					},
+					"Folder": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "FileConnection"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().Folder",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().Container",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/dfdatafoundationLink')]"
+			]
 		}
 	]
 }
