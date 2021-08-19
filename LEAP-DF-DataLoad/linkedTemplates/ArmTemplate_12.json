@@ -13,6 +13,183 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/Test_Loop')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpFilecheck]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "TASDBConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Set variable1",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "flgDone",
+							"value": {
+								"value": "@string(activity('Lookup1').output.firstRow.flgDone)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Set variable1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(int(variables('flgDone')))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Stored procedure1",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Set variable1_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpinsertLog]"
+									},
+									"linkedServiceName": {
+										"referenceName": "TASDatabase",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [
+										{
+											"activity": "Stored procedure1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 15
+									}
+								},
+								{
+									"name": "Lookup1_copy1",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpFilecheck]",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "TASDBConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Set variable1_copy1",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Lookup1_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "flgDone",
+										"value": {
+											"value": "@activity('Lookup1_copy1').output.firstRow.flgDone",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					}
+				],
+				"variables": {
+					"flgDone": {
+						"type": "Boolean"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:38:58Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pipeline2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -2088,186 +2265,6 @@
 						}
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MasterDataForAPI')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy SalesHierarchy",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderQuery": "SELECT DISTINCT DbrNodeID, DbrNodeType, DbrCode, DbrName, BrnNodeID, BrnNOdeType, BranchCode, SubDNodeID, SubDNodeType, SubDCode\nFROM [vwSalesHierarchyUptoSUBD]\n",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink"
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "DbrNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "DbrNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "DbrNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "DbrNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "DbrCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "DbrCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "DbrName",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "DbrName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "BrnNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrnNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BrnNOdeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrnNOdeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "BranchCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SubDNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SubDNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "SubDCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_DF_NC_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_API_DBRList",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"annotations": []
 			},
 			"dependsOn": []
 		},

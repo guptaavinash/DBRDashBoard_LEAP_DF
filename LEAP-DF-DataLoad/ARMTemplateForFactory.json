@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"APIDB_LinkedService_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'APIDB_LinkedService'"
+		},
+		"APIDB_LinkedService_servicePrincipalKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'servicePrincipalKey' of 'APIDB_LinkedService'"
+		},
 		"AstixLiveServer_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'AstixLiveServer'"
@@ -51,13 +59,13 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'TASDatabase_Test'"
 		},
-		"APIDB_LinkedService_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'APIDB_LinkedService'"
+		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
+			"type": "string",
+			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
 		},
-		"APIDB_LinkedService_servicePrincipalKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'servicePrincipalKey' of 'APIDB_LinkedService'"
+		"APIDB_LinkedService_properties_typeProperties_tenant": {
+			"type": "string",
+			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
 		},
 		"CCRDataStorageLink_sasUri": {
 			"type": "secureString",
@@ -142,14 +150,6 @@
 		"Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval": {
 			"type": "string",
 			"defaultValue": "DW400c"
-		},
-		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
-			"type": "string",
-			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
-		},
-		"APIDB_LinkedService_properties_typeProperties_tenant": {
-			"type": "string",
-			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
 		}
 	},
 	"variables": {
@@ -47625,6 +47625,378 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_17Aug2021')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Delete Staging Files",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "CopyLeapStaging-To-ADLS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					},
+					{
+						"name": "spLoadLeapTasIntegration",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spLoadLeapTasIntegration]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "CopyLeapStaging-To-ADLS",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spLoadLeapTasIntegration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeapStaging-To-ADLS",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Directory": "cntleap",
+								"Folder": {
+									"value": "@concat('/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'), '/')",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "DFDataProcessAfterLoading",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DFDataProcessAfterLoading",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataDate": {
+									"value": "@adddays(formatDateTime(pipeline().parameters.DataProcessDate,'dd-MMM-yyyy'),0)",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "DW_Scale_200",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_Sync_Fact",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DW_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "DW200c"
+							}
+						}
+					},
+					{
+						"name": "FocusBrandLoading-LEAP-TO-DF",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Delete Staging Files",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "FocusBrandLoading-LEAP-TO-DF",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "AS_Resume",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DFDataProcessAfterLoading",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Resume",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Wait1",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "AS_Resume",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 300
+						}
+					},
+					{
+						"name": "AS_CubeProcess_Sync_Fact",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Wait1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_CubeProcess_Sync_Fact",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spLoadLeapTasIntegration",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "CopyLeapStaging-To-ADLS",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "Delete Staging Files",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "DFDataProcessAfterLoading",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "AS_Resume",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "Wait1",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "AS_CubeProcess_Sync_Fact",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "DW_Scale_200",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
+					},
+					{
+						"name": "API All Extract Data Populate",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "DFDataProcessAfterLoading",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateAPIAllExtract]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "APIDataFileGeneration",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "API All Extract Data Populate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "APIDataFileGeneration",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					},
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"Container": {
+						"type": "string"
+					},
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]",
+				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
+				"[concat(variables('factoryId'), '/pipelines/CopyLeapStaging-To-ADLS')]",
+				"[concat(variables('factoryId'), '/pipelines/DFDataProcessAfterLoading')]",
+				"[concat(variables('factoryId'), '/pipelines/DW_Scale')]",
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]",
+				"[concat(variables('factoryId'), '/pipelines/AS_Resume')]",
+				"[concat(variables('factoryId'), '/pipelines/AS_CubeProcess_Sync_Fact')]",
+				"[concat(variables('factoryId'), '/pipelines/Send Notification')]",
+				"[concat(variables('factoryId'), '/pipelines/APIDataFileGeneration')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_24Jul2021')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -55658,6 +56030,189 @@
 				"[concat(variables('factoryId'), '/datasets/ADLSCSVDataSource_Folder')]",
 				"[concat(variables('factoryId'), '/datasets/DS_DRCP_table')]",
 				"[concat(variables('factoryId'), '/linkedServices/DFPolybaseStagingStorageLink')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MasterDataForAPI')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy SalesHierarchy",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": "Select DISTINCT DbrNodeID,DbrNodeType,DbrCode,DbrName,BrnNodeID,BrnNOdeType,BranchCode,SubDNodeID,SubDNodeType,SubDCode\nFROM vwSalesHierarchyUptoSUBD WHERE DbrName <> 'Unknwon'\nUNION\nSelect DISTINCT DbrNodeID,DbrNodeType,DbrCode,DbrName,BrnNodeID,BrnNOdeType,BranchCode,NULL,NULL,NULL\nFROM vwSalesHierarchyUptoSUBD WHERE DbrName <> 'Unknwon'\n",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "AzureSqlSink"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "DbrNodeID",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "DbrNodeID",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "DbrNodeType",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "DbrNodeType",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "DbrCode",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "DbrCode",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "DbrName",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "DbrName",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "BrnNodeID",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "BrnNodeID",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "BrnNOdeType",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "BrnNOdeType",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "BranchCode",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "BranchCode",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "SubDNodeID",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "SubDNodeID",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "SubDNodeType",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "SubDNodeType",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "SubDCode",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "SubDCode",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_DF_NC_SUBD",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_API_DBRList",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_DF_NC_SUBD')]",
+				"[concat(variables('factoryId'), '/datasets/DS_API_DBRList')]"
 			]
 		},
 		{
@@ -68652,6 +69207,74 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_API_DBRList')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "APIDB_LinkedService",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "DbrNodeID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "DbrNodeType",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "DbrCode",
+						"type": "varchar"
+					},
+					{
+						"name": "DbrName",
+						"type": "varchar"
+					},
+					{
+						"name": "BrnNodeID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "BrnNOdeType",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "BranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "SubDNodeID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "SubDNodeType",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "SubDCode",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "SalesHierarchyUptoSUBD"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/APIDB_LinkedService')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DS_ATTN_table')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -80560,6 +81183,25 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/APIDB_LinkedService')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('APIDB_LinkedService_connectionString')]",
+					"servicePrincipalId": "[parameters('APIDB_LinkedService_properties_typeProperties_servicePrincipalId')]",
+					"servicePrincipalKey": {
+						"type": "SecureString",
+						"value": "[parameters('APIDB_LinkedService_servicePrincipalKey')]"
+					},
+					"tenant": "[parameters('APIDB_LinkedService_properties_typeProperties_tenant')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/AstixLiveServer')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -81284,648 +81926,6 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_17Aug2021')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Delete Staging Files",
-						"type": "Delete",
-						"dependsOn": [
-							{
-								"activity": "CopyLeapStaging-To-ADLS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "LeapStorageSourceDataset",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"enableLogging": false,
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							}
-						}
-					},
-					{
-						"name": "spLoadLeapTasIntegration",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spLoadLeapTasIntegration]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "CopyLeapStaging-To-ADLS",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spLoadLeapTasIntegration",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeapStaging-To-ADLS",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Directory": "cntleap",
-								"Folder": {
-									"value": "@concat('/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'), '/')",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DFDataProcessAfterLoading",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DFDataProcessAfterLoading",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataDate": {
-									"value": "@adddays(formatDateTime(pipeline().parameters.DataProcessDate,'dd-MMM-yyyy'),0)",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DW_Scale_200",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Scale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "DW200c"
-							}
-						}
-					},
-					{
-						"name": "FocusBrandLoading-LEAP-TO-DF",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Delete Staging Files",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FocusBrandLoading-LEAP-TO-DF",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_Resume",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DFDataProcessAfterLoading",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Resume",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Wait1",
-						"type": "Wait",
-						"dependsOn": [
-							{
-								"activity": "AS_Resume",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 300
-						}
-					},
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Notification",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spLoadLeapTasIntegration",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "CopyLeapStaging-To-ADLS",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "Delete Staging Files",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "DFDataProcessAfterLoading",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "AS_Resume",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "Wait1",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Failed"
-								]
-							},
-							{
-								"activity": "DW_Scale_200",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "API All Extract Data Populate",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "DFDataProcessAfterLoading",
-								"dependencyConditions": [
-									"Completed"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateAPIAllExtract]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "APIDataFileGeneration",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "API All Extract Data Populate",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "APIDataFileGeneration",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					},
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"Container": {
-						"type": "string"
-					},
-					"Directory": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/LeapStorageSourceDataset')]",
-				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
-				"[concat(variables('factoryId'), '/pipelines/CopyLeapStaging-To-ADLS')]",
-				"[concat(variables('factoryId'), '/pipelines/DFDataProcessAfterLoading')]",
-				"[concat(variables('factoryId'), '/pipelines/DW_Scale')]",
-				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]",
-				"[concat(variables('factoryId'), '/pipelines/AS_Resume')]",
-				"[concat(variables('factoryId'), '/pipelines/AS_CubeProcess_Sync_Fact')]",
-				"[concat(variables('factoryId'), '/pipelines/Send Notification')]",
-				"[concat(variables('factoryId'), '/pipelines/APIDataFileGeneration')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MasterDataForAPI')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy SalesHierarchy",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderQuery": "SELECT DISTINCT DbrNodeID, DbrNodeType, DbrCode, DbrName, BrnNodeID, BrnNOdeType, BranchCode, SubDNodeID, SubDNodeType, SubDCode\nFROM [vwSalesHierarchyUptoSUBD]\n",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink"
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "DbrNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "DbrNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "DbrNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "DbrNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "DbrCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "DbrCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "DbrName",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "DbrName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "BrnNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrnNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BrnNOdeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrnNOdeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "BranchCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SubDNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SubDNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "SubDCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_DF_NC_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_API_DBRList",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_DF_NC_SUBD')]",
-				"[concat(variables('factoryId'), '/datasets/DS_API_DBRList')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/APIDB_LinkedService')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('APIDB_LinkedService_connectionString')]",
-					"servicePrincipalId": "[parameters('APIDB_LinkedService_properties_typeProperties_servicePrincipalId')]",
-					"servicePrincipalKey": {
-						"type": "SecureString",
-						"value": "[parameters('APIDB_LinkedService_servicePrincipalKey')]"
-					},
-					"tenant": "[parameters('APIDB_LinkedService_properties_typeProperties_tenant')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_API_DBRList')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "APIDB_LinkedService",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "DbrNodeID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "DbrNodeType",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "DbrCode",
-						"type": "varchar"
-					},
-					{
-						"name": "DbrName",
-						"type": "varchar"
-					},
-					{
-						"name": "BrnNodeID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "BrnNOdeType",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "BranchCode",
-						"type": "varchar"
-					},
-					{
-						"name": "SubDNodeID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SubDNodeType",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SubDCode",
-						"type": "varchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "SalesHierarchyUptoSUBD"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/APIDB_LinkedService')]"
-			]
 		}
 	]
 }
