@@ -13,6 +13,42 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/ScaleDBAt5_30')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Scaledb",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2020-06-17T18:03:00Z",
+						"timeZone": "UTC",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								0
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Trigger_DW_Resume_Scale')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -452,7 +488,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "Sp RouteSummary",
+								"activity": "RouteSummary_Archive",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1149,7 +1185,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "Sp RouteData",
+								"activity": "RouteData_Archive",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1772,6 +1808,528 @@
 								"type": "Expression"
 							}
 						}
+					},
+					{
+						"name": "RouteSummary_Archive",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Sp RouteSummary",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Broken_Route_Summary','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Broken_Route_Summary",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Broken_Route_Summary\\Archive",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "RouteSummary_Error",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Sp RouteSummary",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "Copy RouteSummary",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Broken_Route_Summary','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Broken_Route_Summary",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Broken_Route_Summary\\Error",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "RouteData_Archive",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Sp RouteData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Daily_Route_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Route_Data",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Route_Data/Archive",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "RouteData_Error",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Sp RouteData",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "Copy RouteData",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Daily_Route_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Route_Data",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Route_Data/Error",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "StoreData_Archive",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Sp StoreData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Store_Data",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Store_Data/Archive",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "StoreData_Error",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Sp StoreData",
+								"dependencyConditions": [
+									"Failed"
+								]
+							},
+							{
+								"activity": "Copy StoreData",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Store_Data",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Daily_Store_Data/Error",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						]
 					}
 				],
 				"parameters": {
@@ -10552,155 +11110,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-12-11T03:28:26Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level3')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Move files from one folder to another folder",
-				"activities": [
-					{
-						"name": "GetFoldername",
-						"description": "Get the list of file",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "ADLSBinaryDataSource_Folder",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "@pipeline().parameters.SourceStore_Container",
-										"type": "Expression"
-									},
-									"Directory": {
-										"value": "@pipeline().parameters.SourceStore_Directory",
-										"type": "Expression"
-									}
-								}
-							},
-							"fieldList": [
-								"childItems"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "ForEachFoldername",
-						"description": "Iterate each folder and find the folder or file inside it.",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "FilterFolder",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('FilterFolder').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"batchCount": 20,
-							"activities": [
-								{
-									"name": "inner folder loop",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "MoveADLS-To-dfdatafoundation_Level4",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"SourceStore_Container": {
-												"value": "@pipeline().parameters.SourceStore_Container",
-												"type": "Expression"
-											},
-											"SourceStore_Directory": {
-												"value": "@concat(pipeline().parameters.SourceStore_Directory, item().name ,'/')\n\n",
-												"type": "Expression"
-											},
-											"DestinationStore_Container": {
-												"value": "@pipeline().parameters.DestinationStore_Container",
-												"type": "Expression"
-											},
-											"DestinationStore_Directory": {
-												"value": "@pipeline().parameters.DestinationStore_Directory",
-												"type": "Expression"
-											}
-										}
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "FilterFolder",
-						"description": "Only files will be selected, the source-folders will not be selected.",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "GetFoldername",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFoldername').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'Folder')",
-								"type": "Expression"
-							}
-						}
-					}
-				],
-				"parameters": {
-					"SourceStore_Container": {
-						"type": "String"
-					},
-					"SourceStore_Directory": {
-						"type": "String"
-					},
-					"DestinationStore_Container": {
-						"type": "String"
-					},
-					"DestinationStore_Directory": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "Other Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-17T07:39:01Z"
 			},
 			"dependsOn": []
 		}
