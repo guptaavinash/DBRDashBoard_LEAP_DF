@@ -59,6 +59,14 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'TASDatabase_Test'"
 		},
+		"dfdatafoundation_Hawkeye_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'dfdatafoundation_Hawkeye'"
+		},
+		"HawkeyeDBOn67_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'HawkeyeDBOn67'"
+		},
 		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
 			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
@@ -3568,6 +3576,9 @@
 					"DataDeleteDate": {
 						"type": "String"
 					}
+				},
+				"folder": {
+					"name": "API"
 				},
 				"annotations": []
 			},
@@ -56701,6 +56712,9 @@
 						]
 					}
 				],
+				"folder": {
+					"name": "API"
+				},
 				"annotations": []
 			},
 			"dependsOn": [
@@ -82528,14 +82542,14 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/APIDataFileGeneration_copy1')]",
+			"name": "[concat(parameters('factoryName'), '/HawkeyeDataImport')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "Lookup All Distributor",
-						"type": "Lookup",
+						"name": "Copy RouteSummary",
+						"type": "Copy",
 						"dependsOn": [
 							{
 								"activity": "DataDatetime",
@@ -82554,579 +82568,854 @@
 						"userProperties": [],
 						"typeProperties": {
 							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDbrList]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_DF_NC_Sales_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach Distributor",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Lookup All Distributor",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Lookup All Distributor').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"activities": [
-								{
-									"name": "Copy RtrMstrBranch",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "Broken_Route_Summary",
+									"wildcardFileName": {
+										"value": "@{concat('Broken_Route_Summary','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+										"type": "Expression"
 									},
-									"userProperties": [],
-									"typeProperties": {
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "SqlServerSink",
+								"preCopyScript": "TRUNCATE TABLE tblTmpBrokenRouteSummary_DirectLoad"
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
 										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderQuery": {
-												"value": "SELECT * FROM tmpAPIExtractRtrMstrBranch WHERE DistCode=@{item().DistributorCode}",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
+											"name": "Weekly Visit Date",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"mappings": [
-												{
-													"source": {
-														"name": "Source",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Source",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "DistCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "DistCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "DistName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "DistName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "BranchCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "BranchCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "BranchName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "BranchName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "RtrCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "RtrCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "RtrName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "RtrName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "ClassCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "ClassCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "ClassName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "ClassName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "ChannelCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "ChannelCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "ChannelName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "ChannelName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "TypeCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "TypeCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "TypeName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "TypeName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Addr1",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Addr1",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Addr2",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Addr2",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Addr3",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Addr3",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "City",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "City",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "State",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "State",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "PhoneNumber",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "PhoneNumber",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "ContactPerson",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "ContactPerson",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "MobileNumber",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "MobileNumber",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Email",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Email",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Lat",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Lat",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Long",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Long",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Payment",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Payment",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "MrAccountCode",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "MrAccountCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "MrAccountName",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "MrAccountName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Status",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Status",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "CreditLimit",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "CreditLimit",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "CreditPeriod",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "CreditPeriod",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "InvoiceLimit",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "InvoiceLimit",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "PanNo",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "PanNo",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "DLNum",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "DLNum",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "DLExpiry",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "DLExpiry",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "GSTNum",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "GSTNum",
-														"type": "String",
-														"physicalType": "String"
-													}
-												}
-											],
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
+											"name": "Weekly Visit Date",
+											"type": "String",
+											"physicalType": "varchar"
 										}
 									},
-									"inputs": [
-										{
-											"referenceName": "DS_RtrMstrBranch",
-											"type": "DatasetReference",
-											"parameters": {}
+									{
+										"source": {
+											"name": "Next_Visit_Date",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Next_Visit_Date",
+											"type": "String",
+											"physicalType": "varchar"
 										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapAPIFileDataset",
-											"type": "DatasetReference",
-											"parameters": {
-												"directory": "apidatacontainer",
-												"FolderPath": {
-													"value": "@{concat(formatDateTime(variables('TimeToday'), 'yyyy'), '/', formatDateTime(variables('TimeToday'), 'MM'), '/', formatDateTime(variables('TimeToday'), 'dd'))}",
-													"type": "Expression"
-												},
-												"filename": {
-													"value": "@{concat('RtrMstr','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'_',item().DistributorCode,'.csv')}",
-													"type": "Expression"
-												}
-											}
+									},
+									{
+										"source": {
+											"name": "Distributor",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Distributor",
+											"type": "String",
+											"physicalType": "varchar"
 										}
-									]
+									},
+									{
+										"source": {
+											"name": "Branch",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Branch",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Site",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Site",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Branch Code",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Branch Code",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Route Code",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Route Code",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Routes Coversing Stores",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Routes Coversing Stores",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Route Type",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Route Type",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Sectorized_Route",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Sectorized_Route",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "DSECode",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "DSECode",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "TBE Code",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "TBE Code",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "BE Code",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "BE Code",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "SM Code",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "SM Code",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Total Routes",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Total Routes",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Green_Route",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Green_Route",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Red_Route",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Red_Route",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "SOP",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "SOP",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Bills Miss",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Bills Miss",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "GP_Miss",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "GP_Miss",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Instore_Time",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Instore_Time",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Issue",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Issue",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "BE",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "BE",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "TBE",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "TBE",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Owner",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Owner",
+											"type": "String",
+											"physicalType": "varchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
 								}
-							]
-						}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "HawkEyeCSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderPath": "Broken_Route_Summary",
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "RouteSummary_table",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
 					},
 					{
 						"name": "DataDatetime",
 						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "DeleteDate",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
+						"dependsOn": [],
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "TimeToday",
 							"value": {
-								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),1,'Day'),'yyyy-MM-dd')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "DeleteDate",
-						"type": "SetVariable",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "DataDeleteDate",
-							"value": {
-								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),8,'Day'),'yyyy-MM-dd')",
+								"value": "@formatDateTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),'yyyy-MM-dd')",
 								"type": "Expression"
 							}
 						}
 					}
 				],
+				"parameters": {
+					"Container": {
+						"type": "string"
+					}
+				},
 				"variables": {
 					"TimeToday": {
 						"type": "String"
-					},
-					"DataDeleteDate": {
-						"type": "String"
 					}
+				},
+				"folder": {
+					"name": "Hawk Eye"
 				},
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_DF_NC_Sales_SUBD')]",
-				"[concat(variables('factoryId'), '/datasets/DS_RtrMstrBranch')]",
-				"[concat(variables('factoryId'), '/datasets/LeapAPIFileDataset')]"
+				"[concat(variables('factoryId'), '/datasets/HawkEyeCSV')]",
+				"[concat(variables('factoryId'), '/datasets/RouteSummary_table')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dfdatafoundation_Hawkeye')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('dfdatafoundation_Hawkeye_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/HawkEyeCSV')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "dfdatafoundation_Hawkeye",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FolderPath": {
+						"type": "string"
+					},
+					"directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Hawk-Eye"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().FolderPath",
+							"type": "Expression"
+						},
+						"container": {
+							"value": "@dataset().directory",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/dfdatafoundation_Hawkeye')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/HawkeyeDBOn67')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('HawkeyeDBOn67_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RouteSummary_table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "HawkeyeDBOn67",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "Hawk-Eye"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "Weekly Visit Date",
+						"type": "varchar"
+					},
+					{
+						"name": "Next_Visit_Date",
+						"type": "varchar"
+					},
+					{
+						"name": "Distributor",
+						"type": "varchar"
+					},
+					{
+						"name": "Branch",
+						"type": "varchar"
+					},
+					{
+						"name": "Site",
+						"type": "varchar"
+					},
+					{
+						"name": "Branch Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Route Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Routes Coversing Stores",
+						"type": "varchar"
+					},
+					{
+						"name": "Route Type",
+						"type": "varchar"
+					},
+					{
+						"name": "Sectorized_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "DSECode",
+						"type": "varchar"
+					},
+					{
+						"name": "TBE Code",
+						"type": "varchar"
+					},
+					{
+						"name": "BE Code",
+						"type": "varchar"
+					},
+					{
+						"name": "SM Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Total Routes",
+						"type": "varchar"
+					},
+					{
+						"name": "Green_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "Red_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "SOP",
+						"type": "varchar"
+					},
+					{
+						"name": "Bills Miss",
+						"type": "varchar"
+					},
+					{
+						"name": "GP_Miss",
+						"type": "varchar"
+					},
+					{
+						"name": "Instore_Time",
+						"type": "varchar"
+					},
+					{
+						"name": "Issue",
+						"type": "varchar"
+					},
+					{
+						"name": "BE",
+						"type": "varchar"
+					},
+					{
+						"name": "TBE",
+						"type": "varchar"
+					},
+					{
+						"name": "Owner",
+						"type": "varchar"
+					},
+					{
+						"name": "TimeStampIns",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tblTmpBrokenRouteSummary_DirectLoad"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/HawkeyeDBOn67')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RouteData_table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "HawkeyeDBOn67",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "Hawk-Eye"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "Weekly Visit Date",
+						"type": "varchar"
+					},
+					{
+						"name": "Next_Visit_Date",
+						"type": "varchar"
+					},
+					{
+						"name": "Distributor",
+						"type": "varchar"
+					},
+					{
+						"name": "Branch",
+						"type": "varchar"
+					},
+					{
+						"name": "Site",
+						"type": "varchar"
+					},
+					{
+						"name": "Branch Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Route Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Routes Coversing Stores",
+						"type": "varchar"
+					},
+					{
+						"name": "Route Type",
+						"type": "varchar"
+					},
+					{
+						"name": "Sectorized_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "DSECode",
+						"type": "varchar"
+					},
+					{
+						"name": "TBE Code",
+						"type": "varchar"
+					},
+					{
+						"name": "BE Code",
+						"type": "varchar"
+					},
+					{
+						"name": "SM Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Total Routes",
+						"type": "varchar"
+					},
+					{
+						"name": "Green_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "Red_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "SOP",
+						"type": "varchar"
+					},
+					{
+						"name": "Bills Miss",
+						"type": "varchar"
+					},
+					{
+						"name": "GP_Miss",
+						"type": "varchar"
+					},
+					{
+						"name": "Instore_Time",
+						"type": "varchar"
+					},
+					{
+						"name": "Issue",
+						"type": "varchar"
+					},
+					{
+						"name": "BE",
+						"type": "varchar"
+					},
+					{
+						"name": "TBE",
+						"type": "varchar"
+					},
+					{
+						"name": "Owner",
+						"type": "varchar"
+					},
+					{
+						"name": "TimeStampIns",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tblTmpDailyRouteData_DirectLoad"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/HawkeyeDBOn67')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/StoreData_table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "HawkeyeDBOn67",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "Hawk-Eye"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "Weekly Visit Date",
+						"type": "varchar"
+					},
+					{
+						"name": "Next_Visit_Date",
+						"type": "varchar"
+					},
+					{
+						"name": "Distributor",
+						"type": "varchar"
+					},
+					{
+						"name": "Branch",
+						"type": "varchar"
+					},
+					{
+						"name": "Site",
+						"type": "varchar"
+					},
+					{
+						"name": "Branch Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Route Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Routes Coversing Stores",
+						"type": "varchar"
+					},
+					{
+						"name": "Route Type",
+						"type": "varchar"
+					},
+					{
+						"name": "Sectorized_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "DSECode",
+						"type": "varchar"
+					},
+					{
+						"name": "TBE Code",
+						"type": "varchar"
+					},
+					{
+						"name": "BE Code",
+						"type": "varchar"
+					},
+					{
+						"name": "SM Code",
+						"type": "varchar"
+					},
+					{
+						"name": "Total Routes",
+						"type": "varchar"
+					},
+					{
+						"name": "Green_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "Red_Route",
+						"type": "varchar"
+					},
+					{
+						"name": "SOP",
+						"type": "varchar"
+					},
+					{
+						"name": "Bills Miss",
+						"type": "varchar"
+					},
+					{
+						"name": "GP_Miss",
+						"type": "varchar"
+					},
+					{
+						"name": "Instore_Time",
+						"type": "varchar"
+					},
+					{
+						"name": "Issue",
+						"type": "varchar"
+					},
+					{
+						"name": "BE",
+						"type": "varchar"
+					},
+					{
+						"name": "TBE",
+						"type": "varchar"
+					},
+					{
+						"name": "Owner",
+						"type": "varchar"
+					},
+					{
+						"name": "TimeStampIns",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tblTmpDailyStoreData_DirectLoad"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/HawkeyeDBOn67')]"
 			]
 		}
 	]
