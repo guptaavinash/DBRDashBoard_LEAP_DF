@@ -82574,7 +82574,14 @@
 					{
 						"name": "CopyRouteSummary",
 						"type": "ExecutePipeline",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Scale_800DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -82597,7 +82604,14 @@
 					{
 						"name": "CopyRouteData",
 						"type": "ExecutePipeline",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "CopyRouteSummary",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -82620,7 +82634,14 @@
 					{
 						"name": "CopyStoreData",
 						"type": "ExecutePipeline",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "CopyRouteData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -82638,6 +82659,53 @@
 									"type": "Expression"
 								}
 							}
+						}
+					},
+					{
+						"name": "Scale_800DTU",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[Scale_S7]"
+						},
+						"linkedServiceName": {
+							"referenceName": "HawkEye_LinkedService",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Scale_50DTU",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "CopyStoreData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[Scale_S2]"
+						},
+						"linkedServiceName": {
+							"referenceName": "HawkEye_LinkedService",
+							"type": "LinkedServiceReference"
 						}
 					}
 				],
@@ -82658,7 +82726,8 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/CopyRouteSummary')]",
 				"[concat(variables('factoryId'), '/pipelines/CopyRouteData')]",
-				"[concat(variables('factoryId'), '/pipelines/CopyStoreData')]"
+				"[concat(variables('factoryId'), '/pipelines/CopyStoreData')]",
+				"[concat(variables('factoryId'), '/linkedServices/HawkEye_LinkedService')]"
 			]
 		},
 		{
