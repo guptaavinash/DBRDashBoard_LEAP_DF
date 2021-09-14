@@ -42,16 +42,115 @@
 		"NCSSUBDDataLoadingFromAstixServer_Day_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
 			"type": "int",
 			"defaultValue": 1
-		},
-		"NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
-			"type": "int",
-			"defaultValue": 2
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/FocusBrandLoading-LEAP-TO-DF')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "FileTransferfromS3toAzure",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpDeleteFocusbrandTmpTable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyRTDXS3-To-Staging",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "FocusbrandLoadingtoDB",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "FileTransferfromS3toAzure",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyRTDX_Staging-To-DB",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "spDataLoadFocusBrand",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "FocusbrandLoadingtoDB",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDataLoadFocusBrand]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SpDeleteFocusbrandTmpTable",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[SpDeleteFocusbrandTmpTable]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovement')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -1879,7 +1978,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_17Aug2021')]",
@@ -2240,7 +2341,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_24Jul2021')]",
@@ -2520,7 +2623,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_30Jul2021')]",
@@ -2974,7 +3079,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_copy1')]",
@@ -3277,7 +3384,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation')]",
@@ -3448,7 +3557,9 @@
 					}
 				}
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FocusBrandLoading-LEAP-TO-DF')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_WithoutProcessing')]",
@@ -3508,46 +3619,6 @@
 						"interval": 1,
 						"startTime": "2021-03-10T14:00:00",
 						"timeZone": "India Standard Time"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/NCSDataTransfer-ASTIX-TO-DF')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NCSSUBDDataLoadingFromAstixServer_Night')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "NCSDataTransfer-ASTIX-TO-DF",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"ProcessingType": "[parameters('NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-03-10T04:00:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0
-							],
-							"hours": [
-								6
-							]
-						}
 					}
 				}
 			},
