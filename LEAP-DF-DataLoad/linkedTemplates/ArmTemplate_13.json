@@ -13,6 +13,187 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/Test_Loop')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpFilecheck]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "TASDBConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Set variable1",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Lookup1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "flgDone",
+							"value": {
+								"value": "@string(activity('Lookup1').output.firstRow.flgDone)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Set variable1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(int(variables('flgDone')))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Stored procedure1",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Set variable1_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpinsertLog]"
+									},
+									"linkedServiceName": {
+										"referenceName": "TASDatabase",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [
+										{
+											"activity": "Stored procedure1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 15
+									}
+								},
+								{
+									"name": "Lookup1_copy1",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "AzureSqlSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpFilecheck]",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "TASDBConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Set variable1_copy1",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Lookup1_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "flgDone",
+										"value": {
+											"value": "@activity('Lookup1_copy1').output.firstRow.flgDone",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"variables": {
+					"flgDone": {
+						"type": "Boolean"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:38:58Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pipeline2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1362,6 +1543,10 @@
 						]
 					}
 				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
 				"folder": {
 					"name": "Other Pipelines"
 				},
@@ -1603,6 +1788,10 @@
 						]
 					}
 				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
 				"parameters": {
 					"windowStart": {
 						"type": "string"
@@ -2196,307 +2385,6 @@
 						}
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/APIDataFileGeneration_copy1')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Lookup All Distributor",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "DataDatetime",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDbrList]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_DF_NC_Sales_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach Distributor",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Lookup All Distributor",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Lookup All Distributor').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"activities": [
-								{
-									"name": "Copy BranchOrder",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderQuery": {
-												"value": "SELECT * FROM tmpAPIExtractBranchOrder WHERE DistCode=@{item().DistributorCode}",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"mappings": [
-												{
-													"source": {
-														"name": "Source",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Source",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "DistCode",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "DistCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "BranchCode",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "BranchCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "BranchName",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "BranchName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "RefNo",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "RefNo",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Date",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Date",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "SubbfCode",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "SubbfCode",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "SubbfName",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "SubbfName",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "order_pc",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "order_pc",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "order_cs",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "order_cs",
-														"type": "String",
-														"physicalType": "String"
-													}
-												}
-											],
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "DS_BranchOrder_table",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapAPIFileDataset",
-											"type": "DatasetReference",
-											"parameters": {
-												"directory": "apidatacontainer",
-												"FolderPath": {
-													"value": "@{concat(formatDateTime(variables('TimeToday'), 'yyyy'), '/', formatDateTime(variables('TimeToday'), 'MM'), '/', formatDateTime(variables('TimeToday'), 'dd'))}",
-													"type": "Expression"
-												},
-												"filename": {
-													"value": "@{concat('BranchOrder','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'_',item().DistributorCode,'.csv')}",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					},
-					{
-						"name": "DataDatetime",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "DeleteDate",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "TimeToday",
-							"value": {
-								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),1,'Day'),'yyyy-MM-dd')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "DeleteDate",
-						"type": "SetVariable",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "DataDeleteDate",
-							"value": {
-								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),8,'Day'),'yyyy-MM-dd')",
-								"type": "Expression"
-							}
-						}
-					}
-				],
-				"variables": {
-					"TimeToday": {
-						"type": "String"
-					},
-					"DataDeleteDate": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "API"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},
@@ -5917,6 +5805,10 @@
 						}
 					}
 				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
 				"variables": {
 					"TimeToday": {
 						"type": "String"
@@ -6117,6 +6009,10 @@
 						}
 					}
 				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
 				"parameters": {
 					"windowStart": {
 						"type": "string"
@@ -6345,6 +6241,10 @@
 						}
 					}
 				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
 				"parameters": {
 					"windowStart": {
 						"type": "string"
@@ -7922,6 +7822,10 @@
 						]
 					}
 				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
 				"folder": {
 					"name": "NCS"
 				},
