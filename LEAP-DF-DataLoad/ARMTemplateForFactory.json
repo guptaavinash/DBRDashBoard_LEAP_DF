@@ -4291,7 +4291,7 @@
 										"source": {
 											"type": "SqlDWSource",
 											"sqlReaderQuery": {
-												"value": "SELECT * FROM tmpAPIExtractDayPSRChnlBranch WHERE DistCode=@{item().DistributorCode}",
+												"value": "SELECT * FROM tmpAPIExtractDayPSRChnlBranch WHERE DistCode='@{item().DistributorCode}'",
 												"type": "Expression"
 											},
 											"queryTimeout": "02:00:00",
@@ -50903,6 +50903,42 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DW_Scale_100')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "DW_Scale",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DW_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "DW100c"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/DW_Scale')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DataMovement_DF-TO-TAS')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -79849,86 +79885,112 @@
 				"type": "AzureSqlDWTable",
 				"schema": [
 					{
-						"name": "branch_code",
+						"name": "Source",
 						"type": "varchar"
 					},
 					{
-						"name": "branch_name",
+						"name": "DistCode",
 						"type": "varchar"
 					},
 					{
-						"name": "cfr_date",
+						"name": "BranchCode",
 						"type": "varchar"
 					},
 					{
-						"name": "channel_name",
+						"name": "BranchName",
 						"type": "varchar"
 					},
 					{
-						"name": "category",
+						"name": "Date",
 						"type": "varchar"
 					},
 					{
-						"name": "brandform",
+						"name": "TransactionType",
 						"type": "varchar"
 					},
 					{
-						"name": "sub_brandform",
+						"name": "ChannelCode",
 						"type": "varchar"
 					},
 					{
-						"name": "orders",
+						"name": "ChannelName",
 						"type": "varchar"
 					},
 					{
-						"name": "supply",
+						"name": "SubChannelCode",
 						"type": "varchar"
 					},
 					{
-						"name": "unserved_demand_qty",
+						"name": "SubChannelName",
 						"type": "varchar"
 					},
 					{
-						"name": "cfr_per",
+						"name": "AccountCode",
 						"type": "varchar"
 					},
 					{
-						"name": "FileName",
+						"name": "AccountName",
 						"type": "varchar"
 					},
 					{
-						"name": "LastModifiedDatetime",
+						"name": "Pcode",
 						"type": "varchar"
 					},
 					{
-						"name": "FileSetId",
-						"type": "bigint",
-						"precision": 19
+						"name": "BatchCode",
+						"type": "varchar"
 					},
 					{
-						"name": "BranchNodeId",
-						"type": "int",
-						"precision": 10
+						"name": "#ofStores",
+						"type": "varchar"
 					},
 					{
-						"name": "BranchNodeType",
-						"type": "int",
-						"precision": 10
+						"name": "Retailing",
+						"type": "varchar"
 					},
 					{
-						"name": "SBFNodeid",
-						"type": "int",
-						"precision": 10
+						"name": "NetValue",
+						"type": "varchar"
 					},
 					{
-						"name": "SBFNodeType",
-						"type": "int",
-						"precision": 10
+						"name": "GrossValue",
+						"type": "varchar"
 					},
 					{
-						"name": "ChannelId",
-						"type": "int",
-						"precision": 10
+						"name": "Discount",
+						"type": "varchar"
+					},
+					{
+						"name": "TaxableScheme",
+						"type": "varchar"
+					},
+					{
+						"name": "SGSTAmount",
+						"type": "varchar"
+					},
+					{
+						"name": "CGSTAmount",
+						"type": "varchar"
+					},
+					{
+						"name": "IGSTAmount",
+						"type": "varchar"
+					},
+					{
+						"name": "CessAmount",
+						"type": "varchar"
+					},
+					{
+						"name": "TaxonDiscount",
+						"type": "varchar"
+					},
+					{
+						"name": "TaxonScheme",
+						"type": "varchar"
+					},
+					{
+						"name": "Qty",
+						"type": "varchar"
 					}
 				],
 				"typeProperties": {
@@ -88419,6 +88481,44 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DW_Scale_100')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "DW_Scale_100",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-12-13T17:57:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								18
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/DW_Scale_100')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/FocusBrandLoading')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -89107,80 +89207,6 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DW_Scale_100')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "DW_Scale",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Scale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "DW100c"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "Resource Management"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/DW_Scale')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DW_Scale_100')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "DW_Scale_100",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-12-13T17:57:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0
-							],
-							"hours": [
-								18
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/DW_Scale_100')]"
-			]
 		}
 	]
 }
