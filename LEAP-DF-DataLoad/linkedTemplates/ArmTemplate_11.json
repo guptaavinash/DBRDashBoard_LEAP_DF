@@ -29706,14 +29706,20 @@
 									"userProperties": [],
 									"typeProperties": {
 										"dataset": {
-											"referenceName": "LeapStorageSourceDataset",
+											"referenceName": "LeapStorageSourceDataset_File",
 											"type": "DatasetReference",
-											"parameters": {}
+											"parameters": {
+												"filename": {
+													"value": "@concat(item().name,'_', formatDateTime(pipeline().parameters.DataDate, 'yyyy'), formatDateTime(pipeline().parameters.DataDate, 'mmm'), formatDateTime(pipeline().parameters.DataDate, 'dd'), '.csv')",
+													"type": "Expression"
+												}
+											}
 										},
 										"fieldList": [
 											"exists",
 											"itemName",
 											"lastModified",
+											"itemType",
 											"childItems"
 										],
 										"storeSettings": {
@@ -29740,14 +29746,21 @@
 									"userProperties": [],
 									"typeProperties": {
 										"expression": {
-											"value": "@activity('GetFileList').output.exist\r\n",
+											"value": "@activity('GetFileList').output.exists",
 											"type": "Expression"
 										},
 										"ifTrueActivities": [
 											{
-												"name": "IFFileFound",
+												"name": "IFFileFoundAction",
 												"type": "Switch",
-												"dependsOn": [],
+												"dependsOn": [
+													{
+														"activity": "SpCycFileEntry",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
 												"userProperties": [],
 												"typeProperties": {
 													"on": {
@@ -38900,6 +38913,121 @@
 														}
 													]
 												}
+											},
+											{
+												"name": "SpCycFileEntry",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpCycFileEntry]",
+													"storedProcedureParameters": {
+														"CycleID": {
+															"value": {
+																"value": "@pipeline().parameters.CycleID",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"DataDate": {
+															"value": {
+																"value": "@formatDateTime(pipeline().parameters.DataDate)",
+																"type": "Expression"
+															},
+															"type": "DateTime"
+														},
+														"FileID": {
+															"value": {
+																"value": "@item().FileID",
+																"type": "Expression"
+															},
+															"type": "Int32"
+														},
+														"FileName": {
+															"value": {
+																"value": "@activity('GetFileList').output.itemName",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"flgProcessType": {
+															"value": "1",
+															"type": "Byte"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "SpCycFileUpdate",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "IFFileFoundAction",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpCycFileEntry]",
+													"storedProcedureParameters": {
+														"CycleID": {
+															"value": {
+																"value": "@pipeline().parameters.CycleID",
+																"type": "Expression"
+															},
+															"type": "Int64"
+														},
+														"DataDate": {
+															"value": {
+																"value": "@formatDateTime(pipeline().parameters.DataDate)",
+																"type": "Expression"
+															},
+															"type": "DateTime"
+														},
+														"FileID": {
+															"value": {
+																"value": "@item().FileID",
+																"type": "Expression"
+															},
+															"type": "Int32"
+														},
+														"FileName": {
+															"value": {
+																"value": "@activity('GetFileList').output.itemName",
+																"type": "Expression"
+															},
+															"type": "String"
+														},
+														"flgProcessType": {
+															"value": "2",
+															"type": "Byte"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
 											}
 										]
 									}
@@ -38916,6 +39044,12 @@
 					"SetID": {
 						"type": "int",
 						"defaultValue": 1
+					},
+					"CycleID": {
+						"type": "int"
+					},
+					"DataDate": {
+						"type": "string"
 					}
 				},
 				"folder": {
