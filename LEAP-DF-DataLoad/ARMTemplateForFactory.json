@@ -55,6 +55,14 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'accountKey' of 'LinkedService_PnGADLS'"
 		},
+		"MaximusDBLink_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'MaximusDBLink'"
+		},
+		"MaximusDBLink_servicePrincipalKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'servicePrincipalKey' of 'MaximusDBLink'"
+		},
 		"PnGDataFoundation_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'PnGDataFoundation'"
@@ -78,14 +86,6 @@
 		"dfdatafoundation_Hawkeye_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'dfdatafoundation_Hawkeye'"
-		},
-		"MaximusDBLink_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'MaximusDBLink'"
-		},
-		"MaximusDBLink_servicePrincipalKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'servicePrincipalKey' of 'MaximusDBLink'"
 		},
 		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
@@ -122,6 +122,14 @@
 		"LinkedService_PnGADLS_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://dfdatafoundationadls.dfs.core.windows.net/"
+		},
+		"MaximusDBLink_properties_typeProperties_servicePrincipalId": {
+			"type": "string",
+			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
+		},
+		"MaximusDBLink_properties_typeProperties_tenant": {
+			"type": "string",
+			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
 		},
 		"NCSdataStorageLink_sasUri": {
 			"type": "secureString",
@@ -194,14 +202,6 @@
 		"Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval": {
 			"type": "string",
 			"defaultValue": "DW400c"
-		},
-		"MaximusDBLink_properties_typeProperties_servicePrincipalId": {
-			"type": "string",
-			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
-		},
-		"MaximusDBLink_properties_typeProperties_tenant": {
-			"type": "string",
-			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
 		}
 	},
 	"variables": {
@@ -81084,6 +81084,52 @@
 								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
 							}
 						}
+					},
+					{
+						"name": "RetailerMasterflagupdate",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "RetailerMasterflagupdate",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Notification1_copy1_copy2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "RetailerMasterflagupdate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
 					}
 				],
 				"policy": {
@@ -81132,7 +81178,8 @@
 				"[concat(variables('factoryId'), '/pipelines/CopyLeap_Staging-To-DB_4')]",
 				"[concat(variables('factoryId'), '/pipelines/APIDataFileGeneration')]",
 				"[concat(variables('factoryId'), '/pipelines/MasterDataForAPI')]",
-				"[concat(variables('factoryId'), '/pipelines/DFDataAPIProcessing')]"
+				"[concat(variables('factoryId'), '/pipelines/DFDataAPIProcessing')]",
+				"[concat(variables('factoryId'), '/pipelines/RetailerMasterflagupdate')]"
 			]
 		},
 		{
@@ -93165,6 +93212,33 @@
 				"[concat(variables('factoryId'), '/datasets/ProdHierarchy_TAS')]",
 				"[concat(variables('factoryId'), '/linkedServices/TASDatabase')]"
 			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/RetailerMasterflagupdate')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Wait1",
+						"type": "Wait",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 1
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/ScaleDown_HawkeyeDB')]",
@@ -109446,6 +109520,48 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_Maximus_tblStoreListWithTownType')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "MaximusDBLink",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "Maximus_DBConnection"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "BranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "SubDCode",
+						"type": "varchar"
+					},
+					{
+						"name": "StoreCode",
+						"type": "varchar"
+					},
+					{
+						"name": "flgTownType",
+						"type": "tinyint",
+						"precision": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tblStoreListWithTownType"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/MaximusDBLink')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DS_NC_AR_SUBD')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -112504,6 +112620,48 @@
 				"typeProperties": {
 					"schema": "dbo",
 					"table": "tblStoreMaster"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/TASDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_TAS_tbltmpRetTASPlanned')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "TASDatabase",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "TAS_DBConnection"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "BranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "StoreCode",
+						"type": "varchar"
+					},
+					{
+						"name": "Frequency",
+						"type": "varchar"
+					},
+					{
+						"name": "StoreId",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tbltmpRetTASPlanned"
 				}
 			},
 			"dependsOn": [
@@ -117186,6 +117344,25 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/MaximusDBLink')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('MaximusDBLink_connectionString')]",
+					"servicePrincipalId": "[parameters('MaximusDBLink_properties_typeProperties_servicePrincipalId')]",
+					"servicePrincipalKey": {
+						"type": "SecureString",
+						"value": "[parameters('MaximusDBLink_servicePrincipalKey')]"
+					},
+					"tenant": "[parameters('MaximusDBLink_properties_typeProperties_tenant')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/NCSdataStorageLink')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -118026,18 +118203,258 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/RetailerMasterflagupdate')]",
+			"name": "[concat(parameters('factoryName'), '/RetailerFlagUpdate')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "Wait1",
-						"type": "Wait",
-						"dependsOn": [],
+						"name": "tbltmpRetTASPlanned",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "spPopulateStoreListWithTownType",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
-							"waitTimeInSeconds": 1
+							"source": {
+								"type": "SqlDWSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowCopyCommand": true,
+								"copyCommandSettings": {}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "PolybaseLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "BranchCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "BranchCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "StoreCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Frequency",
+											"type": "String"
+										},
+										"sink": {
+											"name": "Frequency",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "StoreId",
+											"type": "Int32"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_tbltmpRetTASPlanned",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_tbltmpRetTASPlanned",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "tblStoreListWithTownType",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "tbltmpRetTASPlanned",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowPolyBase": true,
+								"polyBaseSettings": {
+									"rejectValue": 0,
+									"rejectType": "value",
+									"useTypeDefault": true
+								}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "PolybaseLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "BranchCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "BranchCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "SubDCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "SubDCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "StoreCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "flgTownType",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "flgTownType",
+											"type": "Byte"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_Maximus_tblStoreListWithTownType",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_tblStoreListWithTownType",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "spUpdateRetailerflags",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "tblStoreListWithTownType",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spUpdateRetailerflags]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spPopulateStoreListWithTownType",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateStoreListWithTownType]"
+						},
+						"linkedServiceName": {
+							"referenceName": "MaximusDBLink",
+							"type": "LinkedServiceReference"
 						}
 					}
 				],
@@ -118046,62 +118463,66 @@
 					"cancelAfter": {}
 				},
 				"folder": {
-					"name": "Leap Data Pipeline"
+					"name": "Additional Process"
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_tbltmpRetTASPlanned')]",
+				"[concat(variables('factoryId'), '/datasets/DS_Maximus_tblStoreListWithTownType')]",
+				"[concat(variables('factoryId'), '/datasets/DS_tblStoreListWithTownType')]",
+				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
+				"[concat(variables('factoryId'), '/linkedServices/MaximusDBLink')]",
+				"[concat(variables('factoryId'), '/linkedServices/PolybaseLink')]"
+			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/MaximusDBLink')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('MaximusDBLink_connectionString')]",
-					"servicePrincipalId": "[parameters('MaximusDBLink_properties_typeProperties_servicePrincipalId')]",
-					"servicePrincipalKey": {
-						"type": "SecureString",
-						"value": "[parameters('MaximusDBLink_servicePrincipalKey')]"
-					},
-					"tenant": "[parameters('MaximusDBLink_properties_typeProperties_tenant')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_TAS_tbltmpRetTASPlanned')]",
+			"name": "[concat(parameters('factoryName'), '/DS_tbltmpRetTASPlanned')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "TASDatabase",
+					"referenceName": "DataFoundationDB",
 					"type": "LinkedServiceReference"
 				},
 				"folder": {
-					"name": "TAS_DBConnection"
+					"name": "DF_DBConnection/RetailerUpdate"
 				},
 				"annotations": [],
-				"type": "AzureSqlTable",
+				"type": "AzureSqlDWTable",
 				"schema": [
 					{
-						"name": "BranchCode",
+						"name": "branchcode",
+						"type": "nvarchar"
+					},
+					{
+						"name": "subbfname",
+						"type": "nvarchar"
+					},
+					{
+						"name": "status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "FileSetId",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Filename",
 						"type": "varchar"
 					},
 					{
-						"name": "StoreCode",
-						"type": "varchar"
+						"name": "LastModifiedDatetime",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
 					},
 					{
-						"name": "Frequency",
-						"type": "varchar"
-					},
-					{
-						"name": "StoreId",
-						"type": "int",
-						"precision": 10
+						"name": "TimeStampIns",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
 					}
 				],
 				"typeProperties": {
@@ -118110,40 +118531,56 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/TASDatabase')]"
+				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_Maximus_tblStoreListWithTownType')]",
+			"name": "[concat(parameters('factoryName'), '/DS_tblStoreListWithTownType')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "MaximusDBLink",
+					"referenceName": "DataFoundationDB",
 					"type": "LinkedServiceReference"
 				},
 				"folder": {
-					"name": "Maximus_DBConnection"
+					"name": "DF_DBConnection/RetailerUpdate"
 				},
 				"annotations": [],
-				"type": "AzureSqlTable",
+				"type": "AzureSqlDWTable",
 				"schema": [
 					{
-						"name": "BranchCode",
+						"name": "branchcode",
+						"type": "nvarchar"
+					},
+					{
+						"name": "subbfname",
+						"type": "nvarchar"
+					},
+					{
+						"name": "status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "FileSetId",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Filename",
 						"type": "varchar"
 					},
 					{
-						"name": "SubDCode",
-						"type": "varchar"
+						"name": "LastModifiedDatetime",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
 					},
 					{
-						"name": "StoreCode",
-						"type": "varchar"
-					},
-					{
-						"name": "flgTownType",
-						"type": "tinyint",
-						"precision": 3
+						"name": "TimeStampIns",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
 					}
 				],
 				"typeProperties": {
@@ -118152,7 +118589,7 @@
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/MaximusDBLink')]"
+				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]"
 			]
 		}
 	]
