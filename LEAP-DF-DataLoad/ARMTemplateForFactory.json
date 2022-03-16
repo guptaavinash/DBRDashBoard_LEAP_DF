@@ -5936,7 +5936,14 @@
 					{
 						"name": "AS_Pause_ActivityAPI",
 						"type": "WebActivity",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "AS_Scale",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"timeout": "7.00:00:00",
 							"retry": 0,
@@ -5958,6 +5965,20 @@
 								"resource": "https://management.core.windows.net"
 							}
 						}
+					},
+					{
+						"name": "AS_Scale",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -5969,7 +5990,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/AS_Scale')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/AS_Resume')]",
@@ -6016,7 +6039,7 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AS_UpScale')]",
+			"name": "[concat(parameters('factoryName'), '/AS_Scale')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -6035,10 +6058,10 @@
 						"userProperties": [],
 						"typeProperties": {
 							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/?api-version=2017-08-01",
-							"method": "GET",
+							"method": "PATCH",
 							"headers": {},
 							"body": {
-								"value": "{\n   \"sku\":{\n      \"capacity\":1,\n      \"name\":\"S1\",\n      \"tier\":\"Standard\"\n   }\n}",
+								"value": "{\n   \"sku\":{\n      \"capacity\":1,\n      \"name\":\"S2\",\n      \"tier\":\"Standard\"\n   }\n}",
 								"type": "Expression"
 							},
 							"authentication": {
@@ -82536,6 +82559,27 @@
 								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
 							}
 						}
+					},
+					{
+						"name": "AS_Scale",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DW_Scale_200",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -82585,7 +82629,8 @@
 				"[concat(variables('factoryId'), '/pipelines/APIDataFileGeneration')]",
 				"[concat(variables('factoryId'), '/pipelines/MasterDataForAPI')]",
 				"[concat(variables('factoryId'), '/pipelines/DFDataAPIProcessing')]",
-				"[concat(variables('factoryId'), '/pipelines/RetailerMasterflagupdate')]"
+				"[concat(variables('factoryId'), '/pipelines/RetailerMasterflagupdate')]",
+				"[concat(variables('factoryId'), '/pipelines/AS_Scale')]"
 			]
 		},
 		{
