@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"MaximusDBLink_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'MaximusDBLink'"
+		},
+		"MaximusDBLink_servicePrincipalKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'servicePrincipalKey' of 'MaximusDBLink'"
+		},
 		"PnGDataFoundation_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'PnGDataFoundation'"
@@ -27,6 +35,14 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'dfdatafoundation_Hawkeye'"
 		},
+		"MaximusDBLink_properties_typeProperties_servicePrincipalId": {
+			"type": "string",
+			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
+		},
+		"MaximusDBLink_properties_typeProperties_tenant": {
+			"type": "string",
+			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
+		},
 		"NCSdataStorageLink_sasUri": {
 			"type": "secureString",
 			"metadata": "Secure string for 'sasUri' of 'NCSdataStorageLink'"
@@ -40,6 +56,25 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/MaximusDBLink')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('MaximusDBLink_connectionString')]",
+					"servicePrincipalId": "[parameters('MaximusDBLink_properties_typeProperties_servicePrincipalId')]",
+					"servicePrincipalKey": {
+						"type": "SecureString",
+						"value": "[parameters('MaximusDBLink_servicePrincipalKey')]"
+					},
+					"tenant": "[parameters('MaximusDBLink_properties_typeProperties_tenant')]"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/NCSdataStorageLink')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
@@ -140,6 +175,50 @@
 			"properties": {
 				"type": "SelfHosted",
 				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AS_Scale_S4')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "AS_Scale",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/?api-version=2017-08-01",
+							"method": "PATCH",
+							"headers": {},
+							"body": {
+								"value": "{\n   \"sku\":{\n      \"capacity\":1,\n      \"name\":\"S4\",\n      \"tier\":\"Standard\"\n   }\n}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://management.azure.com/"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
 			},
 			"dependsOn": []
 		},
@@ -788,71 +867,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AS_Pause')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "AS_Pause_ActivityAPI",
-						"type": "WebActivity",
-						"dependsOn": [
-							{
-								"activity": "AS_Scale",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/Suspend?api-version=2017-08-01",
-							"method": "POST",
-							"headers": {},
-							"body": {
-								"value": "{\"Dummy\":\"Dummy\"}",
-								"type": "Expression"
-							},
-							"authentication": {
-								"type": "MSI",
-								"resource": "https://management.core.windows.net"
-							}
-						}
-					},
-					{
-						"name": "AS_Scale",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Scale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "Resource Management"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/DFDataAPIProcessing')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1226,44 +1240,6 @@
 				"lastPublishTime": "2021-02-14T16:14:46Z"
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Scaledb')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Scale_V8",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[Scale_GP_Gen5_8]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-14T16:14:46Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/TASDatabase')]"
-			]
 		}
 	]
 }
