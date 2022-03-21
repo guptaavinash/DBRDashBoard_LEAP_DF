@@ -6060,6 +6060,50 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/AS_Scale_S4')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "AS_Scale_S4",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/?api-version=2017-08-01",
+							"method": "PATCH",
+							"headers": {},
+							"body": {
+								"value": "{\n   \"sku\":{\n      \"capacity\":1,\n      \"name\":\"S4\",\n      \"tier\":\"Standard\"\n   }\n}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://management.azure.com/"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ATTNDataMovement')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -94789,7 +94833,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "tbltmpGTMModel",
+								"activity": "tbltmpTASSellerType",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -94933,6 +94977,152 @@
 							"referenceName": "MaximusDBLink",
 							"type": "LinkedServiceReference"
 						}
+					},
+					{
+						"name": "tbltmpTASSellerType",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "tbltmpGTMModel",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowCopyCommand": true,
+								"copyCommandSettings": {}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "PolybaseLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "BranchCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "BranchCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "SUBDCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "SUBDCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "StoreCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "InvCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "InvCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "InvDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "InvDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "SellerType",
+											"type": "String"
+										},
+										"sink": {
+											"name": "SellerType",
+											"type": "String"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_TAS_tbltmpTASSellerType",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_tbltmpTASSellerType",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "spUpdateRetailerflags_copy1",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spUpdateRetailerflags",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spUpdateRetailerflags]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
 					}
 				],
 				"policy": {
@@ -94951,6 +95141,8 @@
 				"[concat(variables('factoryId'), '/datasets/DS_tbltmpRurbanSplit')]",
 				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]",
 				"[concat(variables('factoryId'), '/linkedServices/MaximusDBLink')]",
+				"[concat(variables('factoryId'), '/datasets/DS_TAS_tbltmpTASSellerType')]",
+				"[concat(variables('factoryId'), '/datasets/DS_tbltmpTASSellerType')]",
 				"[concat(variables('factoryId'), '/linkedServices/PolybaseLink')]"
 			]
 		},
@@ -120193,48 +120385,104 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/AS_Scale_S4')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
+			"name": "[concat(parameters('factoryName'), '/DS_TAS_tbltmpTASSellerType')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"activities": [
-					{
-						"name": "AS_Scale_S4",
-						"type": "WebActivity",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/?api-version=2017-08-01",
-							"method": "PATCH",
-							"headers": {},
-							"body": {
-								"value": "{\n   \"sku\":{\n      \"capacity\":1,\n      \"name\":\"S4\",\n      \"tier\":\"Standard\"\n   }\n}",
-								"type": "Expression"
-							},
-							"authentication": {
-								"type": "MSI",
-								"resource": "https://management.azure.com/"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+				"linkedServiceName": {
+					"referenceName": "TASDatabase",
+					"type": "LinkedServiceReference"
 				},
 				"folder": {
-					"name": "Resource Management"
+					"name": "TAS_DBConnection"
 				},
-				"annotations": []
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "BranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "StoreCode",
+						"type": "varchar"
+					},
+					{
+						"name": "Frequency",
+						"type": "varchar"
+					},
+					{
+						"name": "StoreId",
+						"type": "int",
+						"precision": 10
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tbltmpTASSellerType"
+				}
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/TASDatabase')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_tbltmpTASSellerType')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "DataFoundationDB",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "DF_DBConnection/RetailerUpdate"
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [
+					{
+						"name": "branchcode",
+						"type": "nvarchar"
+					},
+					{
+						"name": "subbfname",
+						"type": "nvarchar"
+					},
+					{
+						"name": "status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "FileSetId",
+						"type": "bigint",
+						"precision": 19
+					},
+					{
+						"name": "Filename",
+						"type": "varchar"
+					},
+					{
+						"name": "LastModifiedDatetime",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
+					},
+					{
+						"name": "TimeStampIns",
+						"type": "smalldatetime",
+						"precision": 16,
+						"scale": 0
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tbltmpTASSellerType"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/DataFoundationDB')]"
+			]
 		}
 	]
 }
