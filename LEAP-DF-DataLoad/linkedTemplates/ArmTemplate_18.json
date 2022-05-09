@@ -7,19 +7,19 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container": {
+			"type": "string",
+			"defaultValue": "hawkeye-pwa"
+		},
+		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate": {
+			"type": "string",
+			"defaultValue": "@{formatDateTime(utcNow(),'dd-MMM-yyyy')}"
+		},
 		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
 		},
 		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
-		},
-		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd": {
 			"type": "string",
 			"defaultValue": "@trigger().scheduledTime"
 		},
@@ -42,6 +42,14 @@
 		"NewLeapDataProcessing_properties_LeapDataMovementDaily_V2_parameters_Directory": {
 			"type": "string",
 			"defaultValue": "@{concat('/', formatDateTime(trigger().scheduledTime, 'yyyy'), '/', formatDateTime(trigger().scheduledTime, 'MM'), '/', formatDateTime(trigger().scheduledTime, 'dd'), '/')}"
+		},
+		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart": {
+			"type": "string",
+			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
+		},
+		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd": {
+			"type": "string",
+			"defaultValue": "@trigger().scheduledTime"
 		},
 		"LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart": {
 			"type": "string",
@@ -85,6 +93,49 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/HawkeyeDataImport')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "HawkeyeDataImport",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"Container": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container')]",
+							"ProcessedDataDate": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-08-26T12:26:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								15,
+								16,
+								17,
+								18,
+								19
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_At6')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -124,43 +175,12 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/S3LEAPFileTransfer')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "CopyS3-To-Staging",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart')]",
-							"windowEnd": "[parameters('S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-02-18T09:30:00",
-						"timeZone": "India Standard Time"
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/NewLeapDataProcessing')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"annotations": [],
-				"runtimeState": "Stopped",
+				"runtimeState": "Started",
 				"pipelines": [
 					{
 						"pipelineReference": {
@@ -191,6 +211,37 @@
 								11
 							]
 						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/S3LEAPFileTransfer')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "CopyS3-To-Staging",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"windowStart": "[parameters('S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart')]",
+							"windowEnd": "[parameters('S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-02-18T09:30:00",
+						"timeZone": "India Standard Time"
 					}
 				}
 			},
@@ -979,6 +1030,346 @@
 						"dependsOn": [
 							{
 								"activity": "TASDataUpdate",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
+					},
+					{
+						"name": "AS_Scale_S2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_Sync_Fact",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Scale_S2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "AS_Scale_S4",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Wait1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Scale_S4",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Wait_AS_Scaling",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "AS_Scale_S4",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 300
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					},
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"Container": {
+						"type": "string"
+					},
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_07May2022')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "DFDataOlapProcess",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DFDataOlapProcessing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataDate": {
+									"value": "@adddays(formatDateTime(pipeline().parameters.DataProcessDate,'dd-MMM-yyyy'),0)",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "DW_Scale_200",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_Scale_S2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DW_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "DW200c"
+							}
+						}
+					},
+					{
+						"name": "FocusBrandLoading-LEAP-TO-DF",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "FocusBrandLoading-LEAP-TO-DF",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "AS_Resume",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DFDataOlapProcess",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_Resume",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Wait1",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "AS_Resume",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 300
+						}
+					},
+					{
+						"name": "AS_CubeProcess_Sync_Fact",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Wait_AS_Scaling",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_CubeProcess_Sync_Fact",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DW_Scale_200",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
+					},
+					{
+						"name": "Send Notification1_copy1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
+					},
+					{
+						"name": "Send Notification_copy1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DFDataOlapProcess",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
+					},
+					{
+						"name": "Send Notification_copy2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_Resume",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
+								"Subject": "DataFoundation DataLoading Fails ",
+								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
+							}
+						}
+					},
+					{
+						"name": "Send Notification_copy3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_Sync_Fact",
 								"dependencyConditions": [
 									"Failed"
 								]
@@ -3161,346 +3552,6 @@
 						}
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_07May2022')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "DFDataOlapProcess",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DFDataOlapProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataDate": {
-									"value": "@adddays(formatDateTime(pipeline().parameters.DataProcessDate,'dd-MMM-yyyy'),0)",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DW_Scale_200",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_Scale_S2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Scale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "DW200c"
-							}
-						}
-					},
-					{
-						"name": "FocusBrandLoading-LEAP-TO-DF",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FocusBrandLoading-LEAP-TO-DF",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_Resume",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DFDataOlapProcess",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Resume",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Wait1",
-						"type": "Wait",
-						"dependsOn": [
-							{
-								"activity": "AS_Resume",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 300
-						}
-					},
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait_AS_Scaling",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Notification",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Scale_200",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification1_copy1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification_copy1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DFDataOlapProcess",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification_copy2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_Resume",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification_copy3",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "AS_Scale_S2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Scale_S2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_Scale_S4",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Scale_S4",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Wait_AS_Scaling",
-						"type": "Wait",
-						"dependsOn": [
-							{
-								"activity": "AS_Scale_S4",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 300
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					},
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"Container": {
-						"type": "string"
-					},
-					"Directory": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
 			"dependsOn": []
 		},
