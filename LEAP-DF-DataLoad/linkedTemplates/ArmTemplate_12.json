@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"SQLServerNCSAstix_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'SQLServerNCSAstix'"
+		},
 		"Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval": {
 			"type": "string",
 			"defaultValue": "DW400c"
@@ -16,6 +20,59 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SQLServerNCSAstix')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('SQLServerNCSAstix_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AstixSubD",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Trigger_AS_Pause')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "AS_Pause",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-05-06T21:00:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								17
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/Trigger_AS_Resume')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -157,272 +214,6 @@
 								3
 							]
 						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_ACRV_table_V2')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "DataFoundationDB",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"tablename": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "DF_DBConnection/LEAP Tables"
-				},
-				"annotations": [],
-				"type": "AzureSqlDWTable",
-				"schema": [
-					{
-						"name": "branch_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "branch_location",
-						"type": "nvarchar"
-					},
-					{
-						"name": "dse_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "dse_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "retailer_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "retailer_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "sales_invoice_no",
-						"type": "nvarchar"
-					},
-					{
-						"name": "sales_invoice_date",
-						"type": "nvarchar"
-					},
-					{
-						"name": "aging_days",
-						"type": "nvarchar"
-					},
-					{
-						"name": "net_amount",
-						"type": "nvarchar"
-					},
-					{
-						"name": "paid_amount",
-						"type": "nvarchar"
-					},
-					{
-						"name": "balance_amount",
-						"type": "nvarchar"
-					},
-					{
-						"name": "credit_amount",
-						"type": "nvarchar"
-					},
-					{
-						"name": "channel_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "channel_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "FileName",
-						"type": "nvarchar"
-					},
-					{
-						"name": "LastModifiedDatetime",
-						"type": "varchar"
-					},
-					{
-						"name": "FileSetId",
-						"type": "bigint",
-						"precision": 19
-					},
-					{
-						"name": "channel_type_name",
-						"type": "nvarchar"
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": {
-						"value": "@dataset().tablename",
-						"type": "Expression"
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_Destination_table')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "DataFoundationDB",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"tablename": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "DF_DBConnection/LEAP Tables"
-				},
-				"annotations": [],
-				"type": "AzureSqlDWTable",
-				"schema": [
-					{
-						"name": "coh_date",
-						"type": "nvarchar"
-					},
-					{
-						"name": "retailer_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "retailer_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "channel_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "channel_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "channel_type_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "sector_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "seller_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "seller_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "coh_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "target",
-						"type": "nvarchar"
-					},
-					{
-						"name": "achievement",
-						"type": "nvarchar"
-					},
-					{
-						"name": "achievement_status",
-						"type": "nvarchar"
-					},
-					{
-						"name": "calculation_rule",
-						"type": "nvarchar"
-					},
-					{
-						"name": "coh_detail",
-						"type": "nvarchar"
-					},
-					{
-						"name": "withsale",
-						"type": "nvarchar"
-					},
-					{
-						"name": "nosale",
-						"type": "nvarchar"
-					},
-					{
-						"name": "distributor_code",
-						"type": "nvarchar"
-					},
-					{
-						"name": "distributor_name",
-						"type": "nvarchar"
-					},
-					{
-						"name": "FileSetId",
-						"type": "bigint",
-						"precision": 19
-					},
-					{
-						"name": "Filename",
-						"type": "varchar"
-					},
-					{
-						"name": "LastModifiedDatetime",
-						"type": "smalldatetime",
-						"precision": 16,
-						"scale": 0
-					},
-					{
-						"name": "TimeStampIns",
-						"type": "smalldatetime",
-						"precision": 16,
-						"scale": 0
-					},
-					{
-						"name": "FBId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "StoreId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "DSENodeID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "DSENodeType",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SlabTypeID",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SectorId",
-						"type": "int",
-						"precision": 10
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": {
-						"value": "@dataset().tablename",
-						"type": "Expression"
 					}
 				}
 			},
@@ -16742,9 +16533,7 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-09T03:23:55Z"
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_Destination_table')]"
-			]
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CopyLeap_Staging-To-DB_2_copy1')]",
@@ -28726,9 +28515,7 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-09T03:23:55Z"
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_Destination_table')]"
-			]
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CopyLeap_Staging-To-DB_4')]",
@@ -46288,9 +46075,7 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-09T03:23:55Z"
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_Destination_table')]"
-			]
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CopyLeap_Staging-To-DB_5_V2')]",
@@ -53847,9 +53632,7 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-09T03:23:55Z"
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/DS_Destination_table')]"
-			]
+			"dependsOn": []
 		}
 	]
 }
