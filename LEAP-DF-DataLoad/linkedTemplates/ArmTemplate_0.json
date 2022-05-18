@@ -43,18 +43,6 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'servicePrincipalKey' of 'Dev_DataFoundationDB'"
 		},
-		"HawkEye_LinkedService_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'HawkEye_LinkedService'"
-		},
-		"HawkEye_LinkedService_servicePrincipalKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'servicePrincipalKey' of 'HawkEye_LinkedService'"
-		},
-		"HawkeyeDBOn67_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'HawkeyeDBOn67'"
-		},
 		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
 			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
@@ -80,14 +68,6 @@
 			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
 		},
 		"Dev_DataFoundationDB_properties_typeProperties_tenant": {
-			"type": "string",
-			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
-		},
-		"HawkEye_LinkedService_properties_typeProperties_servicePrincipalId": {
-			"type": "string",
-			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
-		},
-		"HawkEye_LinkedService_properties_typeProperties_tenant": {
 			"type": "string",
 			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
 		}
@@ -433,6 +413,47 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DW_Resume_V2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ResumeActivityAPI",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DataFoundation/providers/Microsoft.Sql/servers/pgdatafoundation/databases/DataFoundation_Dev/resume?api-version=2020-08-01-preview",
+							"method": "POST",
+							"headers": {},
+							"body": "{\n\tlocation: \"eastus2\"\n}",
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://management.core.windows.net"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DW_Scale')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -452,6 +473,55 @@
 						"userProperties": [],
 						"typeProperties": {
 							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DataFoundation/providers/Microsoft.Sql/servers/pgdatafoundation/databases/DataFoundation?api-version=2020-08-01-preview",
+							"method": "PUT",
+							"headers": {},
+							"body": {
+								"value": "{\n\tlocation: \"eastus2\",\n    \"sku\": {\n    \"name\": \"@{pipeline().parameters.Scaleval}\"\n    }\n}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://management.core.windows.net"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"Scaleval": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DW_Scale_V2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ScaleActivityAPI",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DataFoundation/providers/Microsoft.Sql/servers/pgdatafoundation/databases/DataFoundation_Dev?api-version=2020-08-01-preview",
 							"method": "PUT",
 							"headers": {},
 							"body": {
@@ -673,38 +743,6 @@
 						"value": "[parameters('Dev_DataFoundationDB_servicePrincipalKey')]"
 					},
 					"tenant": "[parameters('Dev_DataFoundationDB_properties_typeProperties_tenant')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/HawkEye_LinkedService')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('HawkEye_LinkedService_connectionString')]",
-					"servicePrincipalId": "[parameters('HawkEye_LinkedService_properties_typeProperties_servicePrincipalId')]",
-					"servicePrincipalKey": {
-						"type": "SecureString",
-						"value": "[parameters('HawkEye_LinkedService_servicePrincipalKey')]"
-					},
-					"tenant": "[parameters('HawkEye_LinkedService_properties_typeProperties_tenant')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/HawkeyeDBOn67')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "SqlServer",
-				"typeProperties": {
-					"connectionString": "[parameters('HawkeyeDBOn67_connectionString')]"
 				}
 			},
 			"dependsOn": []
