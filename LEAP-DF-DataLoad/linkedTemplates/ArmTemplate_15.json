@@ -6041,770 +6041,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "spTAS_DailyDataRefreshSalesData-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_DailyDataRefreshSalesData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spRolloverDataLoad-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spTAS_DailyDataRefreshSalesData-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spLoadRollOverDayZeroData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spRunForFiveStar-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spRolloverDataLoad-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spRunForFiveStar]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spCalculateLSSSchemeAgainstActData-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spRunForFiveStar-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLSSSchemeAgainstActData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spCalculateLuckDrawStore-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spCalculateLSSSchemeAgainstActData-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLuckDrawStore]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spDF_GenerateInvWiseNetSales-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDF_GenerateInvWiseNetSales]",
-							"storedProcedureParameters": {
-								"Rptmonthyear": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.RptMonthYear",
-										"type": "Expression"
-									},
-									"type": "Int32"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spDFTAS_PopulateSBDWorkingData-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spDF_GenerateInvWiseNetSales-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDFTAS_PopulateSBDWorkingData]",
-							"storedProcedureParameters": {
-								"RptMonthYear": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.SBDRptMonthYear",
-										"type": "Expression"
-									},
-									"type": "Int32"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spTAS_PopulateSBDGaps-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spDFTAS_PopulateSBDWorkingData-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_PopulateSBDGaps]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spAPI_PopulateExtractIDCMP-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAPI_PopulateExtractIDCMP]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spAS_PopulateDimTables-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateDimTables]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spAS_PopulateFactTables-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateDimTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateFactTables]",
-							"storedProcedureParameters": {
-								"DMinus1Date": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spAPI_PopulateAPIBaseTables-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateFactTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAPI_PopulateAPIBaseTables]",
-							"storedProcedureParameters": {
-								"DMinusOneDate": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spTAS_PopulateSchemeApplied-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_PopulateSchemeApplied]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spTAS_PopActiveSBFFrmInv-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_PopActiveSBFFrmInv]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spMAINMoveOrderDetails-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spMAINMoveOrderDetails]",
-							"storedProcedureParameters": {
-								"DelDateInput": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.CurrDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spMainCallerListBackUp-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spMAINMoveOrderDetails-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spMainCallerListBackUp]",
-							"storedProcedureParameters": {
-								"DelDateInput": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.CurrDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spMainTASCallerListBackUp-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spMainCallerListBackUp-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spMainTASCallerListBackUp]",
-							"storedProcedureParameters": {
-								"DelDateInput": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.CurrDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spCalculatePlannedCallMeasure-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spMainTASCallerListBackUp-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculatePlannedCallMeasure]",
-							"storedProcedureParameters": {
-								"ProcessDt": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.CurrDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spPopulateDailyTeleCallerMeasure-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spCalculatePlannedCallMeasure-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateDailyTeleCallerMeasure]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spUpdateDailyRetailerTarget-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spPopulateDailyTeleCallerMeasure-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spUpdateDailyRetailerTarget]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spPopulateAllPlannedCalls-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spUpdateDailyRetailerTarget-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateAllPlannedCalls]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spDataLoadRawLeapTAS_DRCP-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spPopulateAllPlannedCalls-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataLoadRawLeapTAS_DRCP]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spPopulateSchemeData-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateSchemeData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spDailyRefreshSchemeData-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spPopulateSchemeData-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDailyRefreshSchemeData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_CubeProcessing')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -6834,6 +6070,221 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_OnlyProcessing')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "PopulateDSETeleCallingStores",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "LoadLeapTasIntegration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateDSETeleCallingStores]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spDailyDataRefreshSalesData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IFDataTransferCanDone",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDailyDataRefreshSalesData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "IFDataTransferCanDone",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "PopulateDSETeleCallingStores",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select flgPngDataTransfer from tblFlagDataProcess",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "TASDBConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Scale Down DB",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spOlapProcessing",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[Scale_S4_DB]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spOlapProcessing",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spDailyDataRefreshSalesData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spOlapProcessing]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SpDailyRefreshSchemeData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDailyRefreshSchemeData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "LoadLeapTasIntegration",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SpDailyRefreshSchemeData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spLoadLeapTasIntegration]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-09-24T01:59:54Z"
 			},
 			"dependsOn": []
 		}
