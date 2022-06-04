@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
+			"type": "int",
+			"defaultValue": 2
+		},
 		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
@@ -45,249 +49,20 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/Cloud3Pipeline')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "RowCountUpdate_Cloud3",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "CheckLoadingCompleted_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spUpdateRowCountOfEachTable]",
-								"storedProcedureParameters": {
-									"Cloud": {
-										"type": "Int32",
-										"value": "3"
-									},
-									"CycleDate": {
-										"type": "DateTime",
-										"value": {
-											"value": "@pipeline().parameters.DataProcessDate",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "SpGetCloudFileLoadingStatus_Cloud3",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus]",
-								"storedProcedureParameters": {
-									"CloudInstance": {
-										"type": "Byte",
-										"value": "3"
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "CheckLoadingCompleted_Cloud3",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "SpGetCloudFileLoadingStatus_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@activity('SpGetCloudFileLoadingStatus_Cloud3').output.firstRow.flgLoadingDone",
-								"type": "Expression"
-							},
-							"ifTrueActivities": [
-								{
-									"name": "LeapDataLoadingCloud3",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "LeapDataLoadingCloud3",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"CycleID": {
-												"value": "@pipeline().parameters.CycleID",
-												"type": "Expression"
-											},
-											"DataDate": {
-												"value": "@pipeline().parameters.DataProcessDate",
-												"type": "Expression"
-											},
-											"Cloud": 3
-										}
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "SpGetCloudFileProcessingStatus_Cloud3",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "RowCountUpdate_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpGetFileProcessStatus]",
-								"storedProcedureParameters": {
-									"CloudInstanceNo": {
-										"type": "Int32",
-										"value": "3"
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "CheckProcessingCompleted_Cloud3",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "SpGetCloudFileProcessingStatus_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@activity('SpGetCloudFileProcessingStatus_Cloud3').output.firstRow.flgProcessingDone",
-								"type": "Expression"
-							},
-							"ifTrueActivities": [
-								{
-									"name": "LeapDataProcessing-Cloud3",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "LeapDataProcessing",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"CloudInstance": "3"
-										}
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"CycleID": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
+			"name": "[concat(parameters('factoryName'), '/NCSSUBDDataLoadingFromAstixServer_Night')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"annotations": [],
-				"runtimeState": "Stopped",
+				"runtimeState": "Started",
 				"pipelines": [
 					{
 						"pipelineReference": {
-							"referenceName": "LeapDataMovementDaily",
+							"referenceName": "NCSDataTransfer-ASTIX-TO-DF",
 							"type": "PipelineReference"
 						},
 						"parameters": {
-							"windowStart": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart')]",
-							"windowEnd": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd')]",
-							"DataProcessDate": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate')]",
-							"Container": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container')]",
-							"Directory": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory')]"
+							"ProcessingType": "[parameters('NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType')]"
 						}
 					}
 				],
@@ -296,11 +71,11 @@
 					"recurrence": {
 						"frequency": "Day",
 						"interval": 1,
-						"startTime": "2021-03-11T07:00:00",
+						"startTime": "2021-03-10T04:00:00",
 						"timeZone": "India Standard Time",
 						"schedule": {
 							"minutes": [
-								5
+								10
 							],
 							"hours": [
 								6
@@ -852,9 +627,49 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/Cloud3Pipeline')]"
-			]
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataMovementDaily",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"windowStart": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart')]",
+							"windowEnd": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd')]",
+							"DataProcessDate": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate')]",
+							"Container": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container')]",
+							"Directory": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-03-11T07:00:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								5
+							],
+							"hours": [
+								6
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/MiddleDFProcessing')]",
@@ -1115,7 +930,7 @@
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
-											"activity": "Wait 5 Min",
+											"activity": "DW_Scale_400",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -1148,75 +963,6 @@
 									}
 								},
 								{
-									"name": "Scale 400 DTU",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[Scale_S5]"
-									},
-									"linkedServiceName": {
-										"referenceName": "TASDatabase_Check",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "Scale 100 DTU",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "FinalDFProcessing",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[Scale_S3]"
-									},
-									"linkedServiceName": {
-										"referenceName": "TASDatabase_Check",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "Wait 5 Min",
-									"type": "Wait",
-									"dependsOn": [
-										{
-											"activity": "Scale 400 DTU",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "DW_Scale_400",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"waitTimeInSeconds": 300
-									}
-								},
-								{
 									"name": "DW_Scale_200",
 									"type": "ExecutePipeline",
 									"dependsOn": [
@@ -1236,6 +982,30 @@
 										"waitOnCompletion": true,
 										"parameters": {
 											"Scaleval": "DW200c"
+										}
+									}
+								},
+								{
+									"name": "SQL_Scale S3 50 DTU",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "FinalDFProcessing",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SQL_Scale",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Scaleval": "S3",
+											"tier": "Standard"
 										}
 									}
 								}
@@ -1321,7 +1091,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "Loading Temp and Final Tables",
+								"activity": "SQL_Scale S6 400 DTU",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1356,6 +1126,79 @@
 							},
 							"waitOnCompletion": true,
 							"parameters": {}
+						}
+					},
+					{
+						"name": "Wait 1 hour",
+						"type": "Wait",
+						"dependsOn": [
+							{
+								"activity": "DW_Resume_Scale_V2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"waitTimeInSeconds": 3600
+						}
+					},
+					{
+						"name": "SQL_Scale S6 400 DTU",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Wait 1 hour",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SQL_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "S6",
+								"tier": "Standard"
+							}
+						}
+					},
+					{
+						"name": "spDailyRefreshSchemeData-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SQL_Scale S6 400 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDailyRefreshSchemeData]",
+							"storedProcedureParameters": {
+								"IsFullProcessRunning": {
+									"value": "1",
+									"type": "Byte"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
 						}
 					}
 				],
