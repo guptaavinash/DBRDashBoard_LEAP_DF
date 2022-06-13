@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"SQLServerNCSAstix_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'SQLServerNCSAstix'"
+		},
+		"TestTrigger_properties_Testpipeline1_parameters_DataProcessDate": {
+			"type": "string",
+			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
+		},
 		"Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval": {
 			"type": "string",
 			"defaultValue": "DW400c"
@@ -16,6 +24,205 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SQLServerNCSAstix')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('SQLServerNCSAstix_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AstixSubD",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TestTrigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Testpipeline1",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DataProcessDate": "[parameters('TestTrigger_properties_Testpipeline1_parameters_DataProcessDate')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-06-12T12:26:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								5
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Trigger_AS_Pause')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "AS_Pause",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-05-06T21:00:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								17
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Trigger_AS_Resume')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "AS_Resume",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-05-06T08:00:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								30
+							],
+							"hours": [
+								8
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Trigger_DW_Pause')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "DW_Pause",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-05-05T17:26:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								20
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Trigger_DW_Resume')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "DW_Resume",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-05-06T03:45:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								45
+							],
+							"hours": [
+								3
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/Trigger_DW_Scale')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -55,12 +262,140 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_DW_tblLeapP3MSalesDetailByOrder')]",
+			"name": "[concat(parameters('factoryName'), '/DS_WINIT_Folder')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "Dev_DataFoundationDB",
+					"referenceName": "dfdatafoundationLink",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Folder": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "WINIT"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().Folder",
+							"type": "Expression"
+						},
+						"container": "cntwinit"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_WINIT_CCCR_Master')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "dfdatafoundationLink",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Filename": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "WINIT"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().Filename",
+							"type": "Expression"
+						},
+						"folderPath": "CCCRMaster",
+						"container": "cntwinit"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					},
+					{
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_WINITCCCR_table')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "DataFoundationDB",
 					"type": "LinkedServiceReference"
 				},
 				"folder": {
@@ -70,73 +405,268 @@
 				"type": "AzureSqlDWTable",
 				"schema": [
 					{
-						"name": "TeleCallingId",
-						"type": "int",
-						"precision": 10
+						"name": "Site",
+						"type": "varchar"
 					},
 					{
-						"name": "GPPoints",
-						"type": "tinyint",
-						"precision": 3
+						"name": "DistributorCode",
+						"type": "varchar"
 					},
 					{
-						"name": "ParameterId",
-						"type": "tinyint",
-						"precision": 3
+						"name": "DistributorNameBranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "BranchName",
+						"type": "varchar"
+					},
+					{
+						"name": "SubDCode",
+						"type": "varchar"
+					},
+					{
+						"name": "SubDName",
+						"type": "varchar"
+					},
+					{
+						"name": "DSECode",
+						"type": "varchar"
+					},
+					{
+						"name": "DSE Name",
+						"type": "varchar"
+					},
+					{
+						"name": "Subdlocation",
+						"type": "varchar"
+					},
+					{
+						"name": "VisitDate",
+						"type": "varchar"
+					},
+					{
+						"name": "StartTime",
+						"type": "varchar"
+					},
+					{
+						"name": "EndTime",
+						"type": "varchar"
+					},
+					{
+						"name": "ScheduledCalls",
+						"type": "varchar"
+					},
+					{
+						"name": "VisitedCalls",
+						"type": "varchar"
+					},
+					{
+						"name": "Compliant Call",
+						"type": "varchar"
+					},
+					{
+						"name": "ProductiveCalls",
+						"type": "varchar"
+					},
+					{
+						"name": "SalesValue",
+						"type": "varchar"
+					},
+					{
+						"name": "AvgCallTime",
+						"type": "varchar"
+					},
+					{
+						"name": "Filename",
+						"type": "varchar"
+					},
+					{
+						"name": "LastModifiedDatetime",
+						"type": "varchar"
+					},
+					{
+						"name": "FileSetId",
+						"type": "bigint",
+						"precision": 19
 					}
 				],
 				"typeProperties": {
 					"schema": "dbo",
-					"table": "tblLeapP3MSalesDetailByOrder"
+					"table": "tmpRawWinit_CCRMaster"
 				}
 			},
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_TAS_tblP3MSalesDetail_Test')]",
+			"name": "[concat(parameters('factoryName'), '/DS_WINIT_CCCR_Detail')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "TASDatabase_Check",
+					"referenceName": "dfdatafoundationLink",
 					"type": "LinkedServiceReference"
 				},
+				"parameters": {
+					"Filename": {
+						"type": "string"
+					}
+				},
 				"folder": {
-					"name": "TAS_DBConnection"
+					"name": "WINIT"
 				},
 				"annotations": [],
-				"type": "AzureSqlTable",
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().Filename",
+							"type": "Expression"
+						},
+						"folderPath": "CCCRDetail",
+						"container": "cntwinit"
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
 				"schema": [
 					{
-						"name": "TeleCallingId",
-						"type": "int",
-						"precision": 10
+						"name": "Site",
+						"type": "String"
 					},
 					{
-						"name": "GPPoints",
-						"type": "tinyint",
-						"precision": 3
+						"name": "DistributorName",
+						"type": "String"
 					},
 					{
-						"name": "ParameterId",
-						"type": "tinyint",
-						"precision": 3
+						"name": "SubDCode",
+						"type": "String"
+					},
+					{
+						"name": "SubDName",
+						"type": "String"
+					},
+					{
+						"name": "BranchCode",
+						"type": "String"
+					},
+					{
+						"name": "SubD Location",
+						"type": "String"
+					},
+					{
+						"name": "DseCode",
+						"type": "String"
+					},
+					{
+						"name": "DseName",
+						"type": "String"
+					},
+					{
+						"name": "Date",
+						"type": "String"
+					},
+					{
+						"name": "RouteName",
+						"type": "String"
+					},
+					{
+						"name": "RetailerCode",
+						"type": "String"
+					},
+					{
+						"name": "RetailerName",
+						"type": "String"
+					},
+					{
+						"name": "ContactNumber1",
+						"type": "String"
+					},
+					{
+						"name": "ContactNumber2",
+						"type": "String"
+					},
+					{
+						"name": "ChannelName",
+						"type": "String"
+					},
+					{
+						"name": "SubChannelName",
+						"type": "String"
+					},
+					{
+						"name": "StartTime",
+						"type": "String"
+					},
+					{
+						"name": "EndTime",
+						"type": "String"
+					},
+					{
+						"name": "InTime",
+						"type": "String"
+					},
+					{
+						"name": "OrderValue",
+						"type": "String"
+					},
+					{
+						"name": "Productivity",
+						"type": "String"
+					},
+					{
+						"name": "Reason",
+						"type": "String"
+					},
+					{
+						"name": "SkipReason",
+						"type": "String"
+					},
+					{
+						"name": "VisitLatitude",
+						"type": "String"
+					},
+					{
+						"name": "VisitLongitude",
+						"type": "String"
+					},
+					{
+						"name": "DeviationInMeter",
+						"type": "String"
+					},
+					{
+						"name": "Deviated",
+						"type": "String"
+					},
+					{
+						"name": "ReasonForDeviation",
+						"type": "String"
+					},
+					{
+						"name": "OnRoute",
+						"type": "String"
+					},
+					{
+						"name": "Remarks",
+						"type": "String"
+					},
+					{
+						"name": "IsBilled",
+						"type": "String"
 					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tblP3MSalesDetail_Test"
-				}
+				]
 			},
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/DS_DW_tblTAS_INITSBDStoreWiseGaps')]",
+			"name": "[concat(parameters('factoryName'), '/DS_WINITCCCR_table_Detail')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"linkedServiceName": {
-					"referenceName": "Dev_DataFoundationDB",
+					"referenceName": "DataFoundationDB",
 					"type": "LinkedServiceReference"
 				},
 				"folder": {
@@ -146,138 +676,146 @@
 				"type": "AzureSqlDWTable",
 				"schema": [
 					{
-						"name": "TeleCallingId",
-						"type": "int",
-						"precision": 10
+						"name": "Site",
+						"type": "varchar"
 					},
 					{
-						"name": "GPPoints",
-						"type": "tinyint",
-						"precision": 3
+						"name": "DistributorName",
+						"type": "varchar"
 					},
 					{
-						"name": "ParameterId",
-						"type": "tinyint",
-						"precision": 3
+						"name": "SubDCode",
+						"type": "varchar"
+					},
+					{
+						"name": "SubDName",
+						"type": "varchar"
+					},
+					{
+						"name": "BranchCode",
+						"type": "varchar"
+					},
+					{
+						"name": "SubD Location",
+						"type": "varchar"
+					},
+					{
+						"name": "DseCode",
+						"type": "varchar"
+					},
+					{
+						"name": "DseName",
+						"type": "varchar"
+					},
+					{
+						"name": "Date",
+						"type": "varchar"
+					},
+					{
+						"name": "RouteName",
+						"type": "varchar"
+					},
+					{
+						"name": "RetailerCode",
+						"type": "varchar"
+					},
+					{
+						"name": "RetailerName",
+						"type": "varchar"
+					},
+					{
+						"name": "ContactNumber1",
+						"type": "varchar"
+					},
+					{
+						"name": "ContactNumber2",
+						"type": "varchar"
+					},
+					{
+						"name": "ChannelName",
+						"type": "varchar"
+					},
+					{
+						"name": "SubChannelName",
+						"type": "varchar"
+					},
+					{
+						"name": "StartTime",
+						"type": "varchar"
+					},
+					{
+						"name": "EndTime",
+						"type": "varchar"
+					},
+					{
+						"name": "InTime",
+						"type": "varchar"
+					},
+					{
+						"name": "OrderValue",
+						"type": "varchar"
+					},
+					{
+						"name": "Productivity",
+						"type": "varchar"
+					},
+					{
+						"name": "Reason",
+						"type": "varchar"
+					},
+					{
+						"name": "SkipReason",
+						"type": "varchar"
+					},
+					{
+						"name": "VisitLatitude",
+						"type": "varchar"
+					},
+					{
+						"name": "VisitLongitude",
+						"type": "varchar"
+					},
+					{
+						"name": "DeviationInMeter",
+						"type": "varchar"
+					},
+					{
+						"name": "Deviated",
+						"type": "varchar"
+					},
+					{
+						"name": "ReasonForDeviation",
+						"type": "varchar"
+					},
+					{
+						"name": "OnRoute",
+						"type": "varchar"
+					},
+					{
+						"name": "Remarks",
+						"type": "varchar"
+					},
+					{
+						"name": "IsBilled",
+						"type": "varchar"
+					},
+					{
+						"name": "Filename",
+						"type": "varchar"
+					},
+					{
+						"name": "LastModifiedDatetime",
+						"type": "varchar"
+					},
+					{
+						"name": "FileSetId",
+						"type": "bigint",
+						"precision": 19
 					}
 				],
 				"typeProperties": {
 					"schema": "dbo",
-					"table": "tblTAS_INITSBDStoreWiseGaps"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_TAS_tblINITSBDStoreWiseGaps_test')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "TASDatabase_Check",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "TAS_DBConnection"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "TeleCallingId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "GPPoints",
-						"type": "tinyint",
-						"precision": 3
-					},
-					{
-						"name": "ParameterId",
-						"type": "tinyint",
-						"precision": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tblINITSBDStoreWiseGaps_test"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_DW_tblTAS_SBStoreWiseBaseDetailsActual')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "Dev_DataFoundationDB",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "DF_DBConnection/LEAP Tables"
-				},
-				"annotations": [],
-				"type": "AzureSqlDWTable",
-				"schema": [
-					{
-						"name": "TeleCallingId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "GPPoints",
-						"type": "tinyint",
-						"precision": 3
-					},
-					{
-						"name": "ParameterId",
-						"type": "tinyint",
-						"precision": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tblTAS_SBStoreWiseBaseDetailsActual"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_TAS_tblSBStoreWiseBaseDetailsActual_test')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "TASDatabase_Check",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "TAS_DBConnection"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "TeleCallingId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "GPPoints",
-						"type": "tinyint",
-						"precision": 3
-					},
-					{
-						"name": "ParameterId",
-						"type": "tinyint",
-						"precision": 3
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tblSBStoreWiseBaseDetailsActual_test"
+					"table": "tmpRawWinit_CCRDetail"
 				}
 			},
 			"dependsOn": []
@@ -5861,453 +6399,6 @@
 				},
 				"folder": {
 					"name": "V2 Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS-OneFile-Cloud2_backup')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS-OneFile-Cloud2",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset_File_V2_Cloud2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": {
-										"value": "@pipeline().parameters.FileName",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Directory": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"FileName": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS-OneFile-Cloud3')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS-OneFile-Cloud3",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset_File_V2_Cloud3",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": {
-										"value": "@pipeline().parameters.FileName",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Directory": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"FileName": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS-OneFile-Cloud3_Backup')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS-OneFile-Cloud3",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset_File_V2_Cloud3",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": {
-										"value": "@pipeline().parameters.FileName",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Directory": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"FileName": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS-OneFile')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS-OneFile-Cloud1",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset_File_V2_Cloud1",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": {
-										"value": "@pipeline().parameters.FileName",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Directory": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"FileName": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Directory": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-09-10T06:17:28Z"
