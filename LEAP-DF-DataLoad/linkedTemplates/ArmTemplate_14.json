@@ -863,6 +863,82 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_DW_tblARData_Current')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Dev_DataFoundationDB",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "DF_DBConnection/LEAP Tables"
+				},
+				"annotations": [],
+				"type": "AzureSqlDWTable",
+				"schema": [
+					{
+						"name": "TeleCallingId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "GPPoints",
+						"type": "tinyint",
+						"precision": 3
+					},
+					{
+						"name": "ParameterId",
+						"type": "tinyint",
+						"precision": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tblARData_Current"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_TAS_tblLeapARData')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "TASDatabase_Check",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "TAS_DBConnection"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "TeleCallingId",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "GPPoints",
+						"type": "tinyint",
+						"precision": 3
+					},
+					{
+						"name": "ParameterId",
+						"type": "tinyint",
+						"precision": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tblLeapARData"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/APIDataFileGeneration')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -5980,280 +6056,6 @@
 						"type": "string"
 					},
 					"Directory": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-09-10T06:17:28Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyAstix-To-PnG_Cloud')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "GetFileList",
-						"description": "Get the list of file",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@concat('/', formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'MM'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'dd'), '/')",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Container",
-										"type": "Expression"
-									}
-								}
-							},
-							"fieldList": [
-								"childItems",
-								"itemName"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "FilterFiles",
-						"description": "Only files will be selected, the source-folders will not be selected.",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "GetFileList",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFileList').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@or(or(startswith(item().name,'CFR'),startswith(item().name,'BRODR')),startswith(item().name,'COS'))",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "ForEachFile",
-						"description": "Iterate each file, and move them one by one.",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "FilterFiles",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('FilterFiles').output.value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CFR_COS_BRODR",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "BinarySource",
-											"storeSettings": {
-												"type": "AzureBlobFSReadSettings",
-												"recursive": true,
-												"wildcardFolderPath": {
-													"value": "@concat('/', formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'MM'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'dd'), '/')",
-													"type": "Expression"
-												},
-												"wildcardFileName": {
-													"value": "@item().name",
-													"type": "Expression"
-												},
-												"deleteFilesAfterCompletion": false
-											},
-											"formatSettings": {
-												"type": "BinaryReadSettings"
-											}
-										},
-										"sink": {
-											"type": "BinarySink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"validateDataConsistency": false,
-										"dataIntegrationUnits": 2
-									},
-									"inputs": [
-										{
-											"referenceName": "ADLSBinaryDataSource_Folder",
-											"type": "DatasetReference",
-											"parameters": {
-												"Container": {
-													"value": "@pipeline().parameters.Container",
-													"type": "Expression"
-												},
-												"Directory": {
-													"value": "@concat('/', formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'MM'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'dd'), '/')\n",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapStorageSourceDataset",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Container": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"ProcessDate": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-17T07:38:58Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyLeapStaging-To-ADLS-OneFile-Cloud1')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS-OneFile-Cloud1",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "BinarySource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true
-								},
-								"formatSettings": {
-									"type": "BinaryReadSettings"
-								}
-							},
-							"sink": {
-								"type": "BinarySink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"dataIntegrationUnits": 2
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapStorageSourceDataset_File_V2_Cloud1",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": {
-										"value": "@pipeline().parameters.FileName",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ADLSDataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Directory",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Directory": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"FileName": {
 						"type": "string"
 					}
 				},

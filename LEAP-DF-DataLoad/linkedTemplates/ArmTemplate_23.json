@@ -6,28 +6,226 @@
 			"type": "string",
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
-		},
-		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container": {
-			"type": "string",
-			"defaultValue": "hawkeye-pwa"
-		},
-		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate": {
-			"type": "string",
-			"defaultValue": "@{formatDateTime(utcNow(),'dd-MMM-yyyy')}"
-		},
-		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/TASDataUpdate')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "RetailerFlagUpdate",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "RetailerFlagUpdate",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TeleCallerListForDay",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "RetailerFlagUpdate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TeleCallerListForDay",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TASOrderLog')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "TASOrderLog_Cloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TASOrderLog_Cloud1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TASOrderLog_Cloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "TASOrderLog_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TASOrderLog_Cloud2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TASOrderLog_Cloud3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "TASOrderLog_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TASOrderLog_Cloud3",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "TASOrder"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-16T14:36:08Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/WinITCCCRDataLoading')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_ProcessDate",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": "SELECT FORMAT(ProcessDate,'dd-MMM-yy') ProcessDate FROM tmpWinITCCCRDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachDates",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_ProcessDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_ProcessDate').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "SingleFileCopy_WINITCCCR",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SingleFileCopy_WINITCCCR",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"ProcessDate": {
+												"value": "@item().ProcessDate",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "WINIT Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing_V2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -3839,126 +4037,6 @@
 					"name": "NCS"
 				},
 				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/TestPipeline_06Jun')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS-AllCloudFiles",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeapStaging-To-ADLS-AllCloudFiles",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Directory": "cntleap",
-								"Folder": {
-									"value": "@concat('/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'), '/')",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "Other Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/HawkeyeDataImport')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "HawkeyeDataImport",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"Container": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container')]",
-							"ProcessedDataDate": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-08-26T12:26:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0
-							],
-							"hours": [
-								15,
-								16,
-								17,
-								18,
-								19
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_At6')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataMovement_WithoutProcessing",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowStart')]",
-							"windowEnd": "[parameters('LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowEnd')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2020-06-07T18:27:00Z",
-						"timeZone": "UTC",
-						"schedule": {
-							"minutes": [
-								30
-							],
-							"hours": [
-								0
-							]
-						}
-					}
-				}
 			},
 			"dependsOn": []
 		}
