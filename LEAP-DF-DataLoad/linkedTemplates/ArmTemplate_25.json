@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart": {
+			"type": "string",
+			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
+		},
+		"LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd": {
+			"type": "string",
+			"defaultValue": "@trigger().scheduledTime"
+		},
 		"NCSSUBDDataLoadingFromAstixServer_Day_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
 			"type": "int",
 			"defaultValue": 1
@@ -37,7 +45,7 @@
 		},
 		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate": {
 			"type": "string",
-			"defaultValue": "@{formatDateTime(utcNow(),'dd-MMM-yyyy')}"
+			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
 		},
 		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Container": {
 			"type": "string",
@@ -52,6 +60,65 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/FocusBrandLoading')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "FocusBrandLoading-LEAP-TO-DF",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-02-28T09:00:00",
+						"timeZone": "India Standard Time"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_WithoutProcessing')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataMovement_WithoutLoading",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"windowStart": "[parameters('LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart')]",
+							"windowEnd": "[parameters('LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-03-02T08:00:00",
+						"timeZone": "India Standard Time"
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/NCSSUBDDataLoadingFromAstixServer_Day')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -1214,7 +1281,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "SQL_Scale S7 1600 DTU",
+								"activity": "spPopulateOrderTelecallerListTransferTables-TAS",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -2211,6 +2278,16 @@
 									},
 									{
 										"source": {
+											"name": "strBatchPrice",
+											"type": "String"
+										},
+										"sink": {
+											"name": "strBatchPrice",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
 											"name": "ProductRateBeforeTax",
 											"type": "Decimal"
 										},
@@ -2332,7 +2409,7 @@
 						"type": "SqlServerStoredProcedure",
 						"dependsOn": [
 							{
-								"activity": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+								"activity": "spDeleteOrderTelecallerList",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -2359,7 +2436,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "spTransferDFTeleCallerListForDayData",
+								"activity": "Copy Order Detail",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -3157,7 +3234,7 @@
 									},
 									{
 										"source": {
-											"name": "TCNodeId",
+											"name": "TCNodeID",
 											"type": "Int32"
 										},
 										"sink": {
@@ -3182,6 +3259,26 @@
 										},
 										"sink": {
 											"name": "OrderCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "BranchCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "BranchCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "DSECode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "DSECode",
 											"type": "String"
 										}
 									}
@@ -3202,33 +3299,6 @@
 								"parameters": {}
 							}
 						]
-					},
-					{
-						"name": "spTransferDFTeleCallerListForDayData",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "Copy Order Detail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTransferDFTeleCallerListForDayData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
 					},
 					{
 						"name": "DF-To-TAS Transfer",
@@ -3323,6 +3393,93 @@
 								"type": "DatasetReference",
 								"parameters": {}
 							}
+						}
+					},
+					{
+						"name": "spPopulateOrderTelecallerListTransferTables-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SQL_Scale S7 1600 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateOrderTelecallerListTransferTables]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spDeleteOrderTelecallerList",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spPopulateOrderTelecallerListHistoryFromTransferTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDeleteOrderTelecallerList]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spPopulateOrderTelecallerListHistoryFromTransferTables",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spPopulateOrderTelecallerListTransferTables-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateOrderTelecallerListHistoryFromTransferTables]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
 						}
 					}
 				],
