@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"SQLServerNCSAstix_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'SQLServerNCSAstix'"
+		},
+		"TestTrigger_properties_Testpipeline1_parameters_DataProcessDate": {
+			"type": "string",
+			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
+		},
 		"Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval": {
 			"type": "string",
 			"defaultValue": "DW400c"
@@ -16,6 +24,61 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SQLServerNCSAstix')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"connectionString": "[parameters('SQLServerNCSAstix_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AstixSubD",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TestTrigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Testpipeline1",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DataProcessDate": "[parameters('TestTrigger_properties_Testpipeline1_parameters_DataProcessDate')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-06-12T12:26:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								28
+							],
+							"hours": [
+								0
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/Trigger_AS_Pause')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -194,201 +257,6 @@
 							]
 						}
 					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_WINIT_DRCP')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "dfdatafoundationLink",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "DelimitedText",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobStorageLocation",
-						"fileName": "JulyDrcp.csv",
-						"folderPath": "DRCP",
-						"container": "cntwinit"
-					},
-					"columnDelimiter": ",",
-					"escapeChar": "\\",
-					"firstRowAsHeader": true,
-					"quoteChar": "\""
-				},
-				"schema": [
-					{
-						"name": "CustomerCode",
-						"type": "String"
-					},
-					{
-						"name": "CustomerName",
-						"type": "String"
-					},
-					{
-						"name": "SiteName",
-						"type": "String"
-					},
-					{
-						"name": "StoreCode",
-						"type": "String"
-					},
-					{
-						"name": "StoreName",
-						"type": "String"
-					},
-					{
-						"name": "SubDCode",
-						"type": "String"
-					},
-					{
-						"name": "SubDName",
-						"type": "String"
-					},
-					{
-						"name": "BranchName",
-						"type": "String"
-					},
-					{
-						"name": "SellerCode",
-						"type": "String"
-					},
-					{
-						"name": "SellerName",
-						"type": "String"
-					},
-					{
-						"name": "ChannelCode",
-						"type": "String"
-					},
-					{
-						"name": "CustomerType",
-						"type": "String"
-					},
-					{
-						"name": "RouteNo",
-						"type": "String"
-					},
-					{
-						"name": "DayOfVisit",
-						"type": "String"
-					},
-					{
-						"name": "DistributorCode",
-						"type": "String"
-					},
-					{
-						"name": "DistributorName",
-						"type": "String"
-					}
-				]
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_DF_tmpRawWinIT_DRCP_New')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "DataFoundationDB",
-					"type": "LinkedServiceReference"
-				},
-				"annotations": [],
-				"type": "AzureSqlDWTable",
-				"schema": [
-					{
-						"name": "CustomerCode",
-						"type": "varchar"
-					},
-					{
-						"name": "CustomerName",
-						"type": "varchar"
-					},
-					{
-						"name": "SiteName",
-						"type": "varchar"
-					},
-					{
-						"name": "StoreCode",
-						"type": "varchar"
-					},
-					{
-						"name": "StoreName",
-						"type": "varchar"
-					},
-					{
-						"name": "SubDCode",
-						"type": "varchar"
-					},
-					{
-						"name": "SubDName",
-						"type": "varchar"
-					},
-					{
-						"name": "BranchName",
-						"type": "varchar"
-					},
-					{
-						"name": "SellerCode",
-						"type": "varchar"
-					},
-					{
-						"name": "SellerName",
-						"type": "varchar"
-					},
-					{
-						"name": "ChannelCode",
-						"type": "varchar"
-					},
-					{
-						"name": "CustomerType",
-						"type": "varchar"
-					},
-					{
-						"name": "RouteNo",
-						"type": "varchar"
-					},
-					{
-						"name": "DayOfVisit",
-						"type": "varchar"
-					},
-					{
-						"name": "DistributorCode",
-						"type": "varchar"
-					},
-					{
-						"name": "DistributorName",
-						"type": "varchar"
-					},
-					{
-						"name": "FileSetId",
-						"type": "bigint",
-						"precision": 19
-					},
-					{
-						"name": "Filename",
-						"type": "varchar"
-					},
-					{
-						"name": "LastModifiedDatetime",
-						"type": "varchar"
-					},
-					{
-						"name": "TimeStampIns",
-						"type": "smalldatetime",
-						"precision": 16,
-						"scale": 0
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tmpRawWinIT_DRCP_New"
 				}
 			},
 			"dependsOn": []
