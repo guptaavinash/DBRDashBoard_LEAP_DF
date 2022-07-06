@@ -7,6 +7,18 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_DataDate": {
+			"type": "string",
+			"defaultValue": "@formatDateTime(utcNow(),'dd-MMM-yyyy')"
+		},
+		"CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_windowStart": {
+			"type": "string",
+			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
+		},
+		"CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_windowEnd": {
+			"type": "string",
+			"defaultValue": "@trigger().scheduledTime"
+		},
 		"LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
@@ -60,6 +72,49 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "CCCRDataProcessing_V2",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DataDate": "[parameters('CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_DataDate')]",
+							"windowStart": "[parameters('CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_windowStart')]",
+							"windowEnd": "[parameters('CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_windowEnd')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-06-08T11:23:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								15
+							],
+							"hours": [
+								14,
+								16,
+								18,
+								22
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FocusBrandLoading')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -1044,7 +1099,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "DW_Resume_Scale DW300_V2",
+						"name": "DW_Resume_Scale DW400_V2",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
 						"userProperties": [],
@@ -1055,7 +1110,7 @@
 							},
 							"waitOnCompletion": true,
 							"parameters": {
-								"ScaleVal": "DW300c"
+								"ScaleVal": "DW400c"
 							}
 						}
 					},
@@ -1121,7 +1176,7 @@
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
-											"activity": "DW_Scale_400",
+											"activity": "Wait1 Second",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -1135,22 +1190,6 @@
 										},
 										"waitOnCompletion": true,
 										"parameters": {}
-									}
-								},
-								{
-									"name": "DW_Scale_400",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "DW_Scale_V2",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"Scaleval": "DW400c"
-										}
 									}
 								},
 								{
@@ -1185,7 +1224,7 @@
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
-											"activity": "DW_Scale_400",
+											"activity": "Wait1 Second",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -1200,6 +1239,15 @@
 										"waitOnCompletion": true,
 										"parameters": {}
 									}
+								},
+								{
+									"name": "Wait1 Second",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 1
+									}
 								}
 							]
 						}
@@ -1209,7 +1257,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "DW_Resume_Scale DW300_V2",
+								"activity": "DW_Resume_Scale DW400_V2",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1277,7 +1325,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "DW_Resume_Scale DW300_V2",
+								"activity": "DW_Resume_Scale DW400_V2",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1314,7 +1362,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "DW_Resume_Scale DW300_V2",
+								"activity": "DW_Resume_Scale DW400_V2",
 								"dependencyConditions": [
 									"Succeeded"
 								]

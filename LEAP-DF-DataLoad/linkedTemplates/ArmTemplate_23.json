@@ -13,6 +13,61 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyRTDXS3-To-Staging')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyRTDXS3-To-Staging_Cloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyRTDXS3-To-Staging_Cloud1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CopyRTDXS3-To-Staging_Cloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyRTDXS3-To-Staging_Cloud2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-06-01T01:07:46Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging-Onefile-V2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -2176,13 +2231,7 @@
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "spPopulateFactSBDData",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_ResumeandScale",
+								"activity": "DW_Resume_Scale DW200_V2",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -2364,7 +2413,7 @@
 						}
 					},
 					{
-						"name": "SQL_Scale S4 200 DTU",
+						"name": "SQL_Scale S6 400 DTU",
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
@@ -2406,7 +2455,7 @@
 							},
 							"waitOnCompletion": true,
 							"parameters": {
-								"Scaleval": "S4",
+								"Scaleval": "S6",
 								"tier": "Standard"
 							}
 						}
@@ -2627,6 +2676,35 @@
 						"linkedServiceName": {
 							"referenceName": "TASDatabase_Check",
 							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "DW_Resume_Scale DW200_V2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_ResumeandScale",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spPopulateFactSBDData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DW_Resume_Scale_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"ScaleVal": "DW200c"
+							}
 						}
 					}
 				],
@@ -5489,151 +5567,6 @@
 												"type": "DateTime"
 											}
 										}
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_CCCR')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Lookup_ProcessDate",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderQuery": "SELECT ProcessDate FROM tmpDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_DF_NC_RouteCalendar_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEachDates",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Lookup_ProcessDate",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Lookup_ProcessDate').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "SingleFileCopy_CCCR",
-									"type": "ExecutePipeline",
-									"dependsOn": [
-										{
-											"activity": "SpDeleteOldtmpleapdata",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "SingleFileCopy_CCCR",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"Container": "cntleap",
-											"Folder": {
-												"value": "@concat('/', formatDateTime(item().ProcessDate, 'yyyy'), '/', formatDateTime(item().ProcessDate, 'MM'), '/', formatDateTime(item().ProcessDate, 'dd'), '/')\n",
-												"type": "Expression"
-											},
-											"ProcessDate": {
-												"value": "@item().ProcessDate",
-												"type": "Expression"
-											}
-										}
-									}
-								},
-								{
-									"name": "SpDeleteOldtmpleapdata",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spTruncateCCCRData]"
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spLoadLeapDPSRIndividualProcess",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "SingleFileCopy_CCCR",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spDataLoadRawLEAPTAS_CCCR]"
 									},
 									"linkedServiceName": {
 										"referenceName": "DataFoundationDB",
