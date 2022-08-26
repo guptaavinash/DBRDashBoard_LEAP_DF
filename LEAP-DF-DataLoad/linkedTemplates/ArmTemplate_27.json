@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
+			"type": "int",
+			"defaultValue": 2
+		},
 		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
@@ -44,6 +48,255 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/NCSSUBDDataLoadingFromAstixServer_Night')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "NCSDataTransfer-ASTIX-TO-DF",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"ProcessingType": "[parameters('NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-03-10T04:00:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								10
+							],
+							"hours": [
+								6
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Cloud1Processing')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Until Cloud 1 Processing Done",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@or(not(equals(variables('flgFullProcessingPending'), '1')),\nnot(greaterOrEquals(variables('MaxNoofCheck'),variables('CurrentCountNoofCheck'))))\n",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Set flgFullProcessingPending",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "SpGetCloudFileLoadingStatus_Cloud1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "flgFullProcessingPending",
+										"value": {
+											"value": "@string(activity('SpGetCloudFileLoadingStatus_Cloud1').output.firstRow.flgLoadingDone)",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "SpGetCloudFileLoadingStatus_Cloud1",
+									"type": "Lookup",
+									"dependsOn": [
+										{
+											"activity": "Cloud1Pipeline",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus]",
+											"storedProcedureParameters": {
+												"CloudInstance": {
+													"type": "Byte",
+													"value": "1"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnectionV2",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Set CurrentCountNoofCheck",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "SpGetCloudFileLoadingStatus_Cloud1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "CurrentCountNoofCheck",
+										"value": {
+											"value": "@string(add(int(variables('PreviousCountNoofCheck')),1))",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Count Completed",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "PreviousCountNoofCheck",
+										"value": {
+											"value": "@variables('CurrentCountNoofCheck')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Cloud1Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Count Completed",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Cloud1Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"DataProcessDate": {
+												"value": "@pipeline().parameters.DataProcessDate",
+												"type": "Expression"
+											},
+											"CycleID": {
+												"value": "@pipeline().parameters.CycleID",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Set flgFullProcessingPending",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(variables('flgFullProcessingPending'),'1')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Wait 10 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 600
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"CycleID": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"flgFullProcessingPending": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"MaxNoofCheck": {
+						"type": "String",
+						"defaultValue": "3"
+					},
+					"CurrentCountNoofCheck": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"PreviousCountNoofCheck": {
+						"type": "String",
+						"defaultValue": "0"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/Cloud2Processing')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -730,6 +983,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Cloud1Processing')]",
 				"[concat(variables('factoryId'), '/pipelines/Cloud2Processing')]",
 				"[concat(variables('factoryId'), '/pipelines/Cloud3Processing')]"
 			]
@@ -4134,33 +4388,6 @@
 								"parameters": {}
 							}
 						]
-					},
-					{
-						"name": "spPopulateTASFutureDateInRouteCalendar-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "tblTeleCallerListForDay_FutureDate Transfer TAS To DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateTASFutureDateInRouteCalendar]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
 					}
 				],
 				"policy": {
@@ -4217,7 +4444,7 @@
 						"timeZone": "India Standard Time",
 						"schedule": {
 							"minutes": [
-								45
+								35
 							],
 							"hours": [
 								5
