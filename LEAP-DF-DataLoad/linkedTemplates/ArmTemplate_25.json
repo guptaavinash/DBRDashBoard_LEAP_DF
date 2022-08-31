@@ -13,6 +13,247 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/TASDataUpdate')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "RetailerFlagUpdate",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "RetailerFlagUpdate",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TeleCallerListForDay",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "RetailerFlagUpdate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TeleCallerListForDay",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TASOrderLog')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "TASOrderLog_Cloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TASOrderLog_Cloud1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TASOrderLog_Cloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "TASOrderLog_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TASOrderLog_Cloud2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TASOrderLog_Cloud3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "TASOrderLog_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TASOrderLog_Cloud3",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "TASOrder"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-16T14:36:08Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/WinITCCCRDataLoading')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_ProcessDate",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": "SELECT FORMAT(ProcessDate,'dd-MMM-yy') ProcessDate FROM tmpWinITCCCRDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachDates",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_ProcessDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_ProcessDate').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "SingleFileCopy_WINITCCCR",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SingleFileCopy_WINITCCCR",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"ProcessDate": {
+												"value": "@item().ProcessDate",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "spDataLoadRawLEAPTAS_CCCR_SubD",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "ForEachDates",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDataLoadRawLEAPTAS_CCCR_SubD]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "WINIT Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing_V2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -4004,422 +4245,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing-Loop-V2')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "LeapDataProcessing-Cloud1",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "LeapDataProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CloudInstance": "1"
-							}
-						}
-					},
-					{
-						"name": "LeapDataProcessing-Cloud2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "LeapDataProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CloudInstance": "2"
-							}
-						}
-					},
-					{
-						"name": "LeapDataProcessing-Cloud3",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "LeapDataProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CloudInstance": "3"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level2')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Move files from one folder to another folder",
-				"activities": [
-					{
-						"name": "GetFoldername",
-						"description": "Get the list of file",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "ADLSBinaryDataSource_Folder",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "@pipeline().parameters.SourceStore_Container",
-										"type": "Expression"
-									},
-									"Directory": {
-										"value": "@pipeline().parameters.SourceStore_Directory",
-										"type": "Expression"
-									}
-								}
-							},
-							"fieldList": [
-								"childItems"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "ForEachFoldername",
-						"description": "Iterate each folder and find the folder or file inside it.",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "FilterFolder",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('FilterFolder').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"batchCount": 20,
-							"activities": [
-								{
-									"name": "inner folder loop",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "MoveADLS-To-dfdatafoundation_Level3",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"SourceStore_Container": {
-												"value": "@pipeline().parameters.SourceStore_Container",
-												"type": "Expression"
-											},
-											"SourceStore_Directory": {
-												"value": "@concat(pipeline().parameters.SourceStore_Directory,'/', item().name ,'/')\n\n",
-												"type": "Expression"
-											},
-											"DestinationStore_Container": {
-												"value": "@pipeline().parameters.DestinationStore_Container",
-												"type": "Expression"
-											},
-											"DestinationStore_Directory": {
-												"value": "@pipeline().parameters.DestinationStore_Directory",
-												"type": "Expression"
-											}
-										}
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "FilterFolder",
-						"description": "Only files will be selected, the source-folders will not be selected.",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "GetFoldername",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFoldername').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'Folder')",
-								"type": "Expression"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"SourceStore_Container": {
-						"type": "String"
-					},
-					"SourceStore_Directory": {
-						"type": "String"
-					},
-					"DestinationStore_Container": {
-						"type": "String"
-					},
-					"DestinationStore_Directory": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "Other Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-17T07:39:03Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NCSDataTransfer-ASTIX-TO-DF')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "WhenReadyToImport",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpDFGetDataLoadStatus]",
-								"storedProcedureParameters": {
-									"Date": {
-										"type": "DateTime",
-										"value": {
-											"value": "@utcnow()",
-											"type": "Expression"
-										}
-									},
-									"flgDayorNight": {
-										"type": "Byte",
-										"value": {
-											"value": "@pipeline().parameters.ProcessingType",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_NC_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "If Condition1",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "WhenReadyToImport",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@activity('WhenReadyToImport').output.firstRow.flgReadyLoad",
-								"type": "Expression"
-							},
-							"ifTrueActivities": [
-								{
-									"name": "CopyNCS_ASTIX_To_DF",
-									"type": "ExecutePipeline",
-									"dependsOn": [
-										{
-											"activity": "SpDeleteNCSTmpTable",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "CopyNCS_ASTIX_To_DF",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {}
-									}
-								},
-								{
-									"name": "SpDeleteNCSTmpTable",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[SpDeleteNCSTmpTable]"
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spExecuteSUBDDailySP",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "CopyNCS_ASTIX_To_DF",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spExecuteSUBDDailySP]"
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "SpDFUpdateDataTransferStatus",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spExecuteSUBDDailySP",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[SpDFUpdateDataTransferStatus]",
-										"storedProcedureParameters": {
-											"Date": {
-												"value": {
-													"value": "@utcnow()",
-													"type": "Expression"
-												},
-												"type": "DateTime"
-											},
-											"flgDayorNight": {
-												"value": {
-													"value": "@pipeline().parameters.ProcessingType",
-													"type": "Expression"
-												},
-												"type": "Byte"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "SQLServerNCSAstix",
-										"type": "LinkedServiceReference"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"ProcessingType": {
-						"type": "int"
-					}
-				},
-				"folder": {
-					"name": "NCS"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
