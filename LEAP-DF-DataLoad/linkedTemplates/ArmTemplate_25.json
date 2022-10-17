@@ -1541,6 +1541,595 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyStaging-To-DB-WINITPSR-V2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Getfilenames",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetWINIT_PSRFileDetails_Daily]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach1",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Getfilenames",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Getfilenames').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "GetFileList",
+									"type": "GetMetadata",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "DS_WINIT_StorageSourceDataset_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												},
+												"folder": "PSR"
+											}
+										},
+										"fieldList": [
+											"exists",
+											"itemName",
+											"lastModified",
+											"itemType"
+										],
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										},
+										"formatSettings": {
+											"type": "BinaryReadSettings"
+										}
+									}
+								},
+								{
+									"name": "If File Exists",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "GetFileList",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@activity('GetFileList').output.exists",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "PSR Data Copy",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [
+													{
+														"activity": "SpCycFileSetEntry",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"additionalColumns": [
+															{
+																"name": "Filename",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "LastModifiedDatetime",
+																"value": {
+																	"value": "@addminutes(utcnow(),330)",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "FileSetID",
+																"value": {
+																	"value": "@activity('SpCycFileSetEntry').output.firstRow.CycFileID",
+																	"type": "Expression"
+																}
+															}
+														],
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": {
+															"value": "TRUNCATE TABLE @{item().temptablename}",
+															"type": "Expression"
+														},
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"dataIntegrationUnits": 2,
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "BranchCode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "BranchCode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "SubDCode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "SubDCode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "SubDName",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "SubDName",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "VisitDate",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "VisitDate",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "RouteCode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "RouteCode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "RouteName",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "RouteName",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "RetailerCode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "RetailerCode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "RetailerName",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "RetailerName",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "CustTypeName",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "CustTypeName",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "DSECode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "DSECode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "DSEName",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "DSEName",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "STLCode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "STLCode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "FileName",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "FileSetID",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "FileSetId",
+																	"type": "Int64"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "WinITCSV_Staging_pipe",
+														"type": "DatasetReference",
+														"parameters": {
+															"Filename": {
+																"value": "@item().name",
+																"type": "Expression"
+															},
+															"Folder": "PSR"
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_Destination_table",
+														"type": "DatasetReference",
+														"parameters": {
+															"tablename": {
+																"value": "@item().temptablename",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											},
+											{
+												"name": "SpCycFileSetEntry",
+												"type": "Lookup",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "SqlDWSource",
+														"sqlReaderStoredProcedureName": "[[dbo].[SpCycDRCPFileEntry]",
+														"storedProcedureParameters": {
+															"CycleID": {
+																"type": "Int64",
+																"value": {
+																	"value": "@pipeline().parameters.CycleID",
+																	"type": "Expression"
+																}
+															},
+															"DataDate": {
+																"type": "DateTime",
+																"value": {
+																	"value": "@formatDateTime(item().DataDate,'yyyy-MMM-dd')",
+																	"type": "Expression"
+																}
+															},
+															"FileID": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().FileID",
+																	"type": "Expression"
+																}
+															},
+															"FileName": {
+																"type": "String",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															"flgProcessType": {
+																"type": "Byte",
+																"value": "1"
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													},
+													"dataset": {
+														"referenceName": "DataFoundationConnectionV2",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												}
+											},
+											{
+												"name": "SpCycFileSetUpdate",
+												"type": "Lookup",
+												"dependsOn": [
+													{
+														"activity": "PSR Data Copy",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "SqlDWSource",
+														"sqlReaderStoredProcedureName": "[[dbo].[SpCycDRCPFileEntry]",
+														"storedProcedureParameters": {
+															"CycleID": {
+																"type": "Int64",
+																"value": {
+																	"value": "@pipeline().parameters.CycleID",
+																	"type": "Expression"
+																}
+															},
+															"DataDate": {
+																"type": "DateTime",
+																"value": {
+																	"value": "@formatDateTime(item().DataDate,'yyyy-MMM-dd')",
+																	"type": "Expression"
+																}
+															},
+															"FileID": {
+																"type": "Int32",
+																"value": {
+																	"value": "@item().FileID",
+																	"type": "Expression"
+																}
+															},
+															"FileName": {
+																"type": "String",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															"flgProcessType": {
+																"type": "Byte",
+																"value": "2"
+															}
+														},
+														"queryTimeout": "02:00:00",
+														"partitionOption": "None"
+													},
+													"dataset": {
+														"referenceName": "DataFoundationConnectionV2",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												}
+											},
+											{
+												"name": "CopyWINITStaging-To-ADLS",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "SpCycFileSetUpdate",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "CopyWINITStaging-To-ADLS-CFR",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Directory": "cntwinit",
+														"Folder": {
+															"value": "PSR",
+															"type": "Expression"
+														},
+														"FileName": {
+															"value": "@item().name",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "DeleteStagingOneFile",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "CopyWINITStaging-To-ADLS",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "DeleteStagingOneFileWINIT",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"FileName": {
+															"value": "@activity('GetFileList').output.itemName",
+															"type": "Expression"
+														},
+														"Folder": "PSR"
+													}
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"CycleID": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "WINIT Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing_V2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -3373,438 +3962,6 @@
 						"typeProperties": {
 							"pipeline": {
 								"referenceName": "CopyS3-To-Staging_Cloud2_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"CycleID": {
-						"type": "int"
-					},
-					"DataDate": {
-						"type": "string"
-					},
-					"Cloud": {
-						"type": "int"
-					},
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataLoadingCloud3')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_1_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyS3-To-Staging_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_2_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_1_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_2_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_3_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_2_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_3_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_4_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_3_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_4_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_5_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_4_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_5_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_6_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_5_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_6_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_7_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_6_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_7_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_DistributorLevel_9",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_8_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_DistributorLevel_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_8_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_7_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_8_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_Cloud3_CCCR_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_DistributorLevel_9",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_CCCR_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_CFR_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_Cloud3_CCCR_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_CFR_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": {
-									"value": "@pipeline().parameters.Cloud",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyS3-To-Staging_Cloud3",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud3_V2",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
