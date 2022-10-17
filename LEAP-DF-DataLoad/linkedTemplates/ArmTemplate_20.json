@@ -13,6 +13,249 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/MoveFiles_Staging-to-Staging')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "BinaryDataSource_Folder2",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Location",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyAFile",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "BinaryDataSource_File2",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.SourceStore_Location",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.SourceStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "BinaryDataDestination2",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "DeleteAFile",
+									"description": "Delete a file from the source store",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "CopyAFile",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "BinaryDataSource_File2",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.SourceStore_Location",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.SourceStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"SourceStore_Location": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Location": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PnGExternalDataCopy')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -9174,301 +9417,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2021-02-17T07:38:58Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/TransferInvDetails')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy Order master",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE tblTeleCallingInvDetail",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "TeleCallingId",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "TeleCallingId",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "PrdNodeId",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "PrdNodeId",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "PrdNodeType",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "PrdNodeType",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "InvNo",
-											"type": "String"
-										},
-										"sink": {
-											"name": "InvNo",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "InvDate",
-											"type": "DateTime"
-										},
-										"sink": {
-											"name": "InvDate",
-											"type": "DateTime"
-										}
-									},
-									{
-										"source": {
-											"name": "Qty",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "Qty",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "NetValue",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "NetValue",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "GrossAmt",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "GrossAmt",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "TaxAmt",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "TaxAmt",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "RETAILING",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "RETAILING",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "UPC",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "UPC",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "RetQty",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "RetQty",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "RetNetValue",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "RetNetValue",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "RetGrossAmt",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "RetGrossAmt",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "RetTaxAmt",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "RetTaxAmt",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "RetRETAILING",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "RetRETAILING",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "InvQty",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "InvQty",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "InvNetValue",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "InvNetValue",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "InvGrossAmt",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "InvGrossAmt",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "InvTaxAmt",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "InvTaxAmt",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "InvRETAILING",
-											"type": "Decimal"
-										},
-										"sink": {
-											"name": "InvRETAILING",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "flgOrderSource",
-											"type": "Byte"
-										},
-										"sink": {
-											"name": "flgOrderSource",
-											"type": "Byte"
-										}
-									},
-									{
-										"source": {
-											"name": "SBDGroupId",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "SBDGroupId",
-											"type": "Int32"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_DF_tblTAS_TeleCallingInvDetail",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_TAS_tblTeleCallingInvDetail_NEW",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
