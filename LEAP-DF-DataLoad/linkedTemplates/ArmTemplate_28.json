@@ -54,24 +54,105 @@
 		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory": {
 			"type": "string",
 			"defaultValue": "@{concat('/', formatDateTime(trigger().scheduledTime, 'yyyy'), '/', formatDateTime(trigger().scheduledTime, 'MM'), '/', formatDateTime(trigger().scheduledTime, 'dd'), '/')}"
-		},
-		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
-		},
-		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Container": {
-			"type": "string",
-			"defaultValue": "cntleap"
-		},
-		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Directory": {
-			"type": "string",
-			"defaultValue": "@{concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')}"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2_Test')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpCycleStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
+								"storedProcedureParameters": {
+									"flgInOut": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "LeapDataLoadingCloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataLoadingCloud1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Cloud": 1,
+								"DataDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"Container": {
+						"type": "string"
+					},
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -3087,7 +3168,7 @@
 					},
 					"MaxNoofCheck": {
 						"type": "String",
-						"defaultValue": "3"
+						"defaultValue": "10"
 					},
 					"CurrentCountNoofCheck": {
 						"type": "String",
@@ -3298,7 +3379,7 @@
 					},
 					"MaxNoofCheck": {
 						"type": "String",
-						"defaultValue": "3"
+						"defaultValue": "10"
 					},
 					"CurrentCountNoofCheck": {
 						"type": "String",
@@ -3509,7 +3590,7 @@
 					},
 					"MaxNoofCheck": {
 						"type": "String",
-						"defaultValue": "3"
+						"defaultValue": "10"
 					},
 					"CurrentCountNoofCheck": {
 						"type": "String",
@@ -7611,48 +7692,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/NewLeapDataProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataFullProcessDaily_V2",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"DataProcessDate": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate')]",
-							"Container": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Container')]",
-							"Directory": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Directory')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2022-05-09T04:43:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								45
-							],
-							"hours": [
-								5
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataFullProcessDaily_V2')]"
 			]
 		}
 	]
