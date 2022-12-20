@@ -13,6 +13,1924 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyStoreData')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Copy file data from Staging to DB",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "DataDatetime",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DS_StoreDataFolder",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "Copy StoreData",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"wildcardFolderPath": "Daily_Store_Data",
+												"wildcardFileName": {
+													"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+													"type": "Expression"
+												},
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"preCopyScript": "TRUNCATE TABLE tbltmpDailyStoreData_DirectLoad"
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "Weekly Visit Date",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Weekly Visit Date",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Next_Visit_Date",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Next_Visit_Date",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Distributor",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Distributor",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Branch",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Branch",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Site",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Site",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Branch Code",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Branch Code",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Store Id",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Store Id",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Store Name",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Store Name",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Local Channel Name",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Local Channel Name",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Cust Type Name",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Cust Type Name",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Route Code",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Route Code",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Routes Coversing Stores",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Routes Coversing Stores",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "DSECode",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "DSECode",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Number of Visit",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Number of Visit",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Visit",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Visit",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Daily_Sales",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Daily_Sales",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "P3M_Avg_Sales",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "P3M_Avg_Sales",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Cut_Oversold",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Cut_Oversold",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Order_Value",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Order_Value",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "SRN",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "SRN",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "MTD_GP",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "MTD_GP",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "P3M_Avg_GP",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "P3M_Avg_GP",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Billing Opportnity",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Billing Opportnity",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Visit_Billing",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Visit_Billing",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Billing_Loss",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Billing_Loss",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Deviation",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Deviation",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Reason_for_Deviation",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Reason_for_Deviation",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Instore_Time",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Instore_Time",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Visit_Start_Time",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Visit_Start_Time",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "Visit_End_Time",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "Visit_End_Time",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_AR Issue",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_AR Issue",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_Dead Store",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_Dead Store",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_Other",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_Other",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_Others",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_Others",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_Stock Available",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_Stock Available",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_Store Closed",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_Store Closed",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												},
+												{
+													"source": {
+														"name": "CCR_Store Order Received",
+														"type": "String",
+														"physicalType": "String"
+													},
+													"sink": {
+														"name": "CCR_Store Order Received",
+														"type": "String",
+														"physicalType": "varchar"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "HawkEyeCSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"FolderPath": "Daily_Store_Data",
+												"directory": {
+													"value": "@pipeline().parameters.Container",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_StoreData",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "Sp StoreData",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "Copy StoreData",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spDirectLoadSaveData]",
+										"storedProcedureParameters": {
+											"FileSetType": {
+												"value": "3",
+												"type": "Byte"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "HawkEye_LinkedService",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "StoreData_Archive",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Sp StoreData",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"wildcardFolderPath": "Daily_Store_Data",
+												"wildcardFileName": {
+													"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+													"type": "Expression"
+												},
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".csv"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "HawkEyeCSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"FolderPath": "Daily_Store_Data",
+												"directory": {
+													"value": "@pipeline().parameters.Container",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "HawkEyeCSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"FolderPath": "Daily_Store_Data/Archive",
+												"directory": {
+													"value": "@pipeline().parameters.Container",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "StoreData_Error",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Sp StoreData",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobStorageReadSettings",
+												"recursive": true,
+												"wildcardFolderPath": "Daily_Store_Data",
+												"wildcardFileName": {
+													"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+													"type": "Expression"
+												},
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".csv"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "HawkEyeCSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"FolderPath": "Daily_Store_Data",
+												"directory": {
+													"value": "@pipeline().parameters.Container",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "HawkEyeCSV",
+											"type": "DatasetReference",
+											"parameters": {
+												"FolderPath": "Daily_Store_Data/Error",
+												"directory": {
+													"value": "@pipeline().parameters.Container",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "DeleteStoreData",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "StoreData_Archive",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "DS_StoreDataFolder",
+											"type": "DatasetReference",
+											"parameters": {}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": false,
+											"wildcardFileName": {
+												"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+												"type": "Expression"
+											},
+											"enablePartitionDiscovery": false
+										}
+									}
+								},
+								{
+									"name": "DeleteStoreData_copy1",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "StoreData_Error",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "DS_StoreDataFolder",
+											"type": "DatasetReference",
+											"parameters": {}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": false,
+											"wildcardFileName": {
+												"value": "@{concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv')}",
+												"type": "Expression"
+											},
+											"enablePartitionDiscovery": false
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@startswith(item().name,concat('Daily_Store_Data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'.csv'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "DataDatetime",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "DataDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "TimeToday",
+							"value": {
+								"value": "@formatDateTime(convertTimeZone(variables('DataDate'),'UTC','India Standard Time'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "DataDate",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "DataDate",
+							"value": {
+								"value": "@convertTimeZone(pipeline().parameters.ProcessedDataDate,'UTC','India Standard Time')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"concurrency": 1,
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"Container": {
+						"type": "string"
+					},
+					"ProcessedDataDate": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"TimeToday": {
+						"type": "String"
+					},
+					"DataDate": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Hawk Eye"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-04T18:37:57Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyTeleCallerTest')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowCopyCommand": true,
+								"copyCommandSettings": {}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "DFPolybaseStagingStorageLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "TeleCallingId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TeleCallingId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "AttendDetId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "AttendDetId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "StoreId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "Date",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "Date",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "CallMade",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "CallMade",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "DSENodeId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "DSENodeId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "DSENodeType",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "DSENodeType",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "BranchSubdNodeId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "BranchSubdNodeId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "BranchSubdNodeType",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "BranchSubdNodeType",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "StoreCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "StoreName",
+											"type": "String"
+										},
+										"sink": {
+											"name": "StoreName",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "ContactPerson",
+											"type": "String"
+										},
+										"sink": {
+											"name": "ContactPerson",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "ContactNo",
+											"type": "String"
+										},
+										"sink": {
+											"name": "ContactNo",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Channel",
+											"type": "String"
+										},
+										"sink": {
+											"name": "Channel",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "SectorId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "SectorId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "flgCallStatus",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "flgCallStatus",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "ScheduleCall",
+											"type": "String"
+										},
+										"sink": {
+											"name": "ScheduleCall",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "ReasonId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "ReasonId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "CallAttempt",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "CallAttempt",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "TeleReasonId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TeleReasonId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "TeleUserId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TeleUserId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "Priority",
+											"type": "Int16"
+										},
+										"sink": {
+											"name": "Priority",
+											"type": "Int16"
+										}
+									},
+									{
+										"source": {
+											"name": "TotalSales",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "TotalSales",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfInv",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "NoOfInv",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "LastCallDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "LastCallDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "IsFinalDownloadSubmit",
+											"type": "Boolean"
+										},
+										"sink": {
+											"name": "IsFinalDownloadSubmit",
+											"type": "Boolean"
+										}
+									},
+									{
+										"source": {
+											"name": "IsDownloaded",
+											"type": "Boolean"
+										},
+										"sink": {
+											"name": "IsDownloaded",
+											"type": "Boolean"
+										}
+									},
+									{
+										"source": {
+											"name": "OutStandingAmt",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "OutStandingAmt",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "OutStandingDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "OutStandingDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "InvNo",
+											"type": "String"
+										},
+										"sink": {
+											"name": "InvNo",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "InvDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "InvDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "LoginIdUpd",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "LoginIdUpd",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "TimeSTampUpd",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "TimeSTampUpd",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "OldTeleCallingId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "OldTeleCallingId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "TimeStampIns",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "TimeStampIns",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "TCRouteCalendarId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TCRouteCalendarId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "TCPlanCallsMapId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TCPlanCallsMapId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "LoginIdIns",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "LoginIdIns",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "ChannelId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "ChannelId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "RuleId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "RuleId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "ScheduleDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "ScheduleDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "CallStartDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "CallStartDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "Remarks",
+											"type": "String"
+										},
+										"sink": {
+											"name": "Remarks",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastOrderDate",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "LastOrderDate",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "LastOrderValue",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "LastOrderValue",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "OrderBy",
+											"type": "String"
+										},
+										"sink": {
+											"name": "OrderBy",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastVisit",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "LastVisit",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "LastVisitStatus",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LastVisitStatus",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "VisitedBy",
+											"type": "String"
+										},
+										"sink": {
+											"name": "VisitedBy",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastCall",
+											"type": "DateTime"
+										},
+										"sink": {
+											"name": "LastCall",
+											"type": "DateTime"
+										}
+									},
+									{
+										"source": {
+											"name": "LastCallStatus",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LastCallStatus",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastCalledBY",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LastCalledBY",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "SubChannelId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "SubChannelId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "SubChannel",
+											"type": "String"
+										},
+										"sink": {
+											"name": "SubChannel",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "FrequencyId",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FrequencyId",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "AlternateContactNo",
+											"type": "String"
+										},
+										"sink": {
+											"name": "AlternateContactNo",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "RouteName",
+											"type": "String"
+										},
+										"sink": {
+											"name": "RouteName",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarRuleId",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarRuleId",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarNoOfGPTgt",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarNoOfGPTgt",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarNoOfLSSTgt",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarNoOfLSSTgt",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarIndTgtDlvryVal",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "FiveStarIndTgtDlvryVal",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarProductivityTgt",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "FiveStarProductivityTgt",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "TotOrderVal",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "TotOrderVal",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfSKU",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "NoOfSKU",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarNoOfGPAct",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarNoOfGPAct",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarNoOfLSSAct",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarNoOfLSSAct",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarTotIndTgtDlvryVal",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "FiveStarTotIndTgtDlvryVal",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarAlrdyAchIndTgtDlvryVal",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "FiveStarAlrdyAchIndTgtDlvryVal",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfStarsAch",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "NoOfStarsAch",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfPendingVisits",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "NoOfPendingVisits",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "TotInvVal",
+											"type": "Decimal"
+										},
+										"sink": {
+											"name": "TotInvVal",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarNoOfGPAchieved",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarNoOfGPAchieved",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "FiveStarNoOfLSSAchieved",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "FiveStarNoOfLSSAchieved",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "DSEIssueIds",
+											"type": "String"
+										},
+										"sink": {
+											"name": "DSEIssueIds",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "DSEComments",
+											"type": "String"
+										},
+										"sink": {
+											"name": "DSEComments",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "flgCCRRoleOver",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "flgCCRRoleOver",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "TCNodeID",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TCNodeId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "TCNodeType",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TCNodeType",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "OrderCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "OrderCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "BranchCode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "BranchCode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "DSECode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "DSECode",
+											"type": "String"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_TAS_tblTAS_tmpRAWTeleCallerListForDay_V2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_tblTAS_TeleCallerListForDay",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyWINITStaging-To-ADLS-CFR')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyWINITStaging-To-ADLS-CFR",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "BinarySource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true
+								},
+								"formatSettings": {
+									"type": "BinaryReadSettings"
+								}
+							},
+							"sink": {
+								"type": "BinarySink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"dataIntegrationUnits": 2
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_WINIT_StorageSourceDataset_File",
+								"type": "DatasetReference",
+								"parameters": {
+									"filename": {
+										"value": "@pipeline().parameters.FileName",
+										"type": "Expression"
+									},
+									"folder": {
+										"value": "@pipeline().parameters.Folder",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "WinIT_CFR_ADLS",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": {
+										"value": "@pipeline().parameters.Folder",
+										"type": "Expression"
+									},
+									"directory": {
+										"value": "@pipeline().parameters.Directory",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"Directory": {
+						"type": "string"
+					},
+					"Folder": {
+						"type": "string",
+						"defaultValue": "CFR"
+					},
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-09-10T06:17:28Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Copytables-DF-TO-TAS')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -4267,1538 +6185,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-12-08T03:37:36Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing-Set')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "GetFileList-Set1",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpGetFiletoProcess]",
-								"storedProcedureParameters": {
-									"CloudInstanceNo": {
-										"type": "Int32",
-										"value": {
-											"value": "@pipeline().parameters.CloudInstance",
-											"type": "Expression"
-										}
-									},
-									"StepNo": {
-										"type": "Byte",
-										"value": {
-											"value": "@pipeline().parameters.Step",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "For Each File to process",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "GetFileList-Set1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFileList-Set1').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"activities": [
-								{
-									"name": "Sp Called",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderQuery": {
-												"value": "EXEC @{item().spname}",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"CloudInstance": {
-						"type": "string"
-					},
-					"Step": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing_Cloud2_V2')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Cloud 2 Step-1",
-						"type": "Until",
-						"dependsOn": [],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step1'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step1",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "1"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step1').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait1",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set1",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait1",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step1",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set1-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step1",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 2 Step-2",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 2 Step-1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step2'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step2",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "2"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step2",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step2",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step2').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait1_copy1",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set2",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait1_copy1",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step2",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set2-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step2",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 2 Step-3",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 2 Step-2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step3'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step3",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "3"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step3",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step3",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step3').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait3",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set3",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait3",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step3",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set3-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step3",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 2 Step-4",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 2 Step-3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step4'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step4",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "4"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step4",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step4",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step4').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait4",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set4",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait4",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step4",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set4-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step4",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 2 Step-5",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 2 Step-4",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step5'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step5",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "5"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step5",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step5",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step5').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait5",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set5",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait5",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step5",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud1-Set5-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step5",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"variables": {
-					"flgProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"CloudInstance": {
-						"type": "String",
-						"defaultValue": "2"
-					},
-					"Step1": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step2": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step3": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step4": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step5": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing_Cloud3_V2')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Cloud 3 Step-1",
-						"type": "Until",
-						"dependsOn": [],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step1'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step1",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "1"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step1').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait1",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set1",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait1",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step1",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set1-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step1",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 3 Step-2",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 3 Step-1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step2'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step2",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "2"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step2",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step2",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step2').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait1_copy1",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set2",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait1_copy1",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step2",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set2-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step2",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 3 Step-3",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 3 Step-2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step3'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step3",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "3"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step3",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step3",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step3').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait3",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set3",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait3",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step3",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set3-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step3",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 3 Step-4",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 3 Step-3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step4'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step4",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "4"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step4",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step4",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step4').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait4",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set4",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait4",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step4",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud-Set4-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step4",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					},
-					{
-						"name": "Cloud 3 Step-5",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Cloud 3 Step-4",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [
-							{
-								"name": "CloudInstance",
-								"value": "1"
-							}
-						],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('Step5'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "CheckCompleted-Step5",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpIsStepCompleted]",
-											"storedProcedureParameters": {
-												"CloudInstanceNo": {
-													"type": "Int32",
-													"value": {
-														"value": "@variables('CloudInstance')",
-														"type": "Expression"
-													}
-												},
-												"StepNo": {
-													"type": "Byte",
-													"value": "5"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Processing Check_Step5",
-									"type": "Switch",
-									"dependsOn": [
-										{
-											"activity": "CheckCompleted-Step5",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"on": {
-											"value": "@string(activity('CheckCompleted-Step5').output.firstRow.flgCompleted)",
-											"type": "Expression"
-										},
-										"cases": [
-											{
-												"value": "1",
-												"activities": [
-													{
-														"name": "Wait5",
-														"type": "Wait",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"waitTimeInSeconds": 1
-														}
-													},
-													{
-														"name": "Cloud-Set5",
-														"type": "SetVariable",
-														"dependsOn": [
-															{
-																"activity": "Wait5",
-																"dependencyConditions": [
-																	"Succeeded"
-																]
-															}
-														],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step5",
-															"value": true
-														}
-													}
-												]
-											},
-											{
-												"value": "2",
-												"activities": [
-													{
-														"name": "Cloud1-Set5-Done",
-														"type": "SetVariable",
-														"dependsOn": [],
-														"userProperties": [],
-														"typeProperties": {
-															"variableName": "Step5",
-															"value": true
-														}
-													}
-												]
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"variables": {
-					"flgProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"CloudInstance": {
-						"type": "String",
-						"defaultValue": "3"
-					},
-					"Step1": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step2": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step3": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step4": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"Step5": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
