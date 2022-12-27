@@ -19129,6 +19129,440 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/PurdDataFileGeneration_Temp')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy PURD Cloud1",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "DataDatetime",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": {
+									"value": "select 'Cloud01' AS Cloud,branch_Code, grn_date,COUNT(*) NoOfRecords\nFROM tmpRawLeapTAS_PURD_cloud1\nWHERE branch_Code NOT LIKE 'T%'\nGROUP BY branch_Code, grn_date\n",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "Cloud",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "Cloud",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "branch_Code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "branch_Code",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "grn_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "grn_date",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfRecords",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "NoOfRecords",
+											"type": "String",
+											"physicalType": "String"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_ProdMaster",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "LeapAPIFileDataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"directory": "purddatacontainer",
+									"FolderPath": {
+										"value": "@{concat(formatDateTime(variables('TimeToday'), 'yyyy'), '/', formatDateTime(variables('TimeToday'), 'MM'), '/', formatDateTime(variables('TimeToday'), 'dd'))}",
+										"type": "Expression"
+									},
+									"filename": {
+										"value": "@{concat('PURD_Cloud1','.csv')}",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "DataDatetime",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "DeleteDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "TimeToday",
+							"value": {
+								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),1,'Day'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "DeleteDate",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "DataDeleteDate",
+							"value": {
+								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),8,'Day'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Copy PURD Cloud2",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Copy PURD Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": {
+									"value": "select 'Cloud02' AS Cloud,branch_Code, grn_date,COUNT(*) NoOfRecords\nFROM tmpRawLeapTAS_PURD_cloud2\nWHERE branch_Code NOT LIKE 'T%'\nGROUP BY branch_Code, grn_date\n",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "Cloud",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "Cloud",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "branch_Code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "branch_Code",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "grn_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "grn_date",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfRecords",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "NoOfRecords",
+											"type": "String",
+											"physicalType": "String"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_ProdMaster",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "LeapAPIFileDataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"directory": "purddatacontainer",
+									"FolderPath": {
+										"value": "@{concat(formatDateTime(variables('TimeToday'), 'yyyy'), '/', formatDateTime(variables('TimeToday'), 'MM'), '/', formatDateTime(variables('TimeToday'), 'dd'))}",
+										"type": "Expression"
+									},
+									"filename": {
+										"value": "@{concat('PURD_Cloud2','.csv')}",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Copy PURD Cloud3",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Copy PURD Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": {
+									"value": "select 'Cloud03' AS Cloud,branch_Code, grn_date,COUNT(*) NoOfRecords\nFROM tmpRawLeapTAS_PURD_cloud3\nWHERE branch_Code NOT LIKE 'T%'\nGROUP BY branch_Code, grn_date\nORDER BY 2\n",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "Cloud",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "Cloud",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "branch_Code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "branch_Code",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "grn_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										},
+										"sink": {
+											"name": "grn_date",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "NoOfRecords",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "NoOfRecords",
+											"type": "String",
+											"physicalType": "String"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_ProdMaster",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "LeapAPIFileDataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"directory": "purddatacontainer",
+									"FolderPath": {
+										"value": "@{concat(formatDateTime(variables('TimeToday'), 'yyyy'), '/', formatDateTime(variables('TimeToday'), 'MM'), '/', formatDateTime(variables('TimeToday'), 'dd'))}",
+										"type": "Expression"
+									},
+									"filename": {
+										"value": "@{concat('PURD_Cloud3','.csv')}",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"variables": {
+					"TimeToday": {
+						"type": "String"
+					},
+					"DataDeleteDate": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "API"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/SBDINITStoreTransfer')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -19276,285 +19710,6 @@
 				},
 				"folder": {
 					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SalessubdFileLoad')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy data",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "SqlDWSink",
-								"preCopyScript": "TRUNCATE TABLE tmp_SubD_SAles",
-								"allowCopyCommand": true,
-								"copyCommandSettings": {},
-								"disableMetricsCollection": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SUBDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SUBDCODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "DSECODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "DSECODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTCODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "CUSTCODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "INVNO",
-											"type": "String"
-										},
-										"sink": {
-											"name": "INVNO",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "INVDATE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "INVDATE",
-											"type": "DateTime"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUCCODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SKUCCODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SKUDCODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUEANCODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SKUEANCODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "BATCHCODE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "BATCHCODE",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "QTY",
-											"type": "String"
-										},
-										"sink": {
-											"name": "QTY",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "GROSSAMOUNT",
-											"type": "String"
-										},
-										"sink": {
-											"name": "GROSSAMOUNT",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "TAXAMOUNT",
-											"type": "String"
-										},
-										"sink": {
-											"name": "TAXAMOUNT",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "INITDISC",
-											"type": "String"
-										},
-										"sink": {
-											"name": "INITDISC",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "LINEDISC",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LINEDISC",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "NETAMOUNT",
-											"type": "String"
-										},
-										"sink": {
-											"name": "NETAMOUNT",
-											"type": "Decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "INVREF",
-											"type": "String"
-										},
-										"sink": {
-											"name": "INVREF",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStamp",
-											"type": "String"
-										},
-										"sink": {
-											"name": "TimeStamp",
-											"type": "DateTime"
-										}
-									},
-									{
-										"source": {
-											"name": "UPC",
-											"type": "String"
-										},
-										"sink": {
-											"name": "UPC",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "RETAILING",
-											"type": "String"
-										},
-										"sink": {
-											"name": "RETAILING",
-											"type": "Decimal"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_SubDSales",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Destination_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tmp_SubD_SAles"
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "Other Pipelines"
 				},
 				"annotations": []
 			},
