@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"DFLeapTempStorageLink_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'DFLeapTempStorageLink'"
+		},
 		"DFPolybaseStagingStorageLink_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'DFPolybaseStagingStorageLink'"
@@ -140,6 +144,19 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/DFLeapTempStorageLink')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('DFLeapTempStorageLink_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/DFPolybaseStagingStorageLink')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
@@ -406,60 +423,6 @@
 			"properties": {
 				"type": "SelfHosted",
 				"typeProperties": {}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SQL_Scale_Maximus')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "ScaleActivityAPI",
-						"type": "WebActivity",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DataFoundation/providers/Microsoft.Sql/servers/pgdatafoundation/databases/db_PG_Maximus?api-version=2021-02-01-preview",
-							"method": "PUT",
-							"headers": {},
-							"body": {
-								"value": "{\n\tlocation: \"eastus2\",\n    \"sku\": {\n    \"name\": \"@{pipeline().parameters.Scaleval}\",\n    \"tier\": \"@{pipeline().parameters.tier}\"\n    }\n}",
-								"type": "Expression"
-							},
-							"authentication": {
-								"type": "MSI",
-								"resource": "https://management.core.windows.net"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"Scaleval": {
-						"type": "string",
-						"defaultValue": "S3"
-					},
-					"tier": {
-						"type": "string",
-						"defaultValue": "Standard"
-					}
-				},
-				"folder": {
-					"name": "Resource Management"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},
