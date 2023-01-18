@@ -61,6 +61,231 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/Cloud1Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "RowCountUpdate_Cloud1",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CheckLoadingCompleted_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spUpdateRowCountOfEachTable]",
+								"storedProcedureParameters": {
+									"Cloud": {
+										"type": "Int32",
+										"value": "1"
+									},
+									"CycleDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@pipeline().parameters.DataProcessDate",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpGetCloudFileLoadingStatus_Cloud1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus]",
+								"storedProcedureParameters": {
+									"CloudInstance": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "CheckLoadingCompleted_Cloud1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "SpGetCloudFileLoadingStatus_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@activity('SpGetCloudFileLoadingStatus_Cloud1').output.firstRow.flgLoadingDone",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "LeapDataLoadingCloud1",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "LeapDataLoadingCloud1",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Cloud": 1,
+											"DataDate": {
+												"value": "@pipeline().parameters.DataProcessDate",
+												"type": "Expression"
+											},
+											"CycleID": {
+												"value": "@pipeline().parameters.CycleID",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "SpGetCloudFileProcessingStatus_Cloud1",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "RowCountUpdate_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetFileProcessStatus]",
+								"storedProcedureParameters": {
+									"CloudInstanceNo": {
+										"type": "Int32",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "CheckProcessingCompleted_Cloud1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "SpGetCloudFileProcessingStatus_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@activity('SpGetCloudFileProcessingStatus_Cloud1').output.firstRow.flgProcessingDone",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "LeapDataProcessing-Cloud1",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "LeapDataProcessing",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"CloudInstance": "1"
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"CycleID": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Cloud2Pipeline')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -5008,7 +5233,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Cloud1Pipeline')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/Cloud2Processing')]",
@@ -5478,181 +5705,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/LeapDataMovementDaily')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MiddleDFProcessing')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "SpCycleStart",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
-								"storedProcedureParameters": {
-									"flgInOut": {
-										"type": "Byte",
-										"value": "1"
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "Cloud1Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Cloud1Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataProcessDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "Cloud2Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Cloud2Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataProcessDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "Cloud3Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Cloud3Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataProcessDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"flgCloud1LoadingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud2LoadingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud3LoadingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud1ProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud2ProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud3ProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/Cloud1Processing')]",
-				"[concat(variables('factoryId'), '/pipelines/Cloud2Processing')]",
-				"[concat(variables('factoryId'), '/pipelines/Cloud3Processing')]"
 			]
 		}
 	]
