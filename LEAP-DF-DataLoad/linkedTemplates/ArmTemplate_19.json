@@ -13,6 +13,218 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3_V2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Cloud3FilesMetaData",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "S3LeapDataSet_Cloud3_Folder",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"itemName",
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AmazonS3ReadSettings",
+								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Cloud3FilesFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Cloud3FilesMetaData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud3FilesMetaData').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),not(startswith(item().name, 'TAS_')))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachCloud3FolderFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Cloud3FilesFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud3FilesFilter').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "LeapCSV_Cloud3_Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AmazonS3ReadSettings",
+												"recursive": true,
+												"modifiedDatetimeStart": {
+													"value": "@pipeline().parameters.windowStart",
+													"type": "Expression"
+												},
+												"modifiedDatetimeEnd": {
+													"value": "@pipeline().parameters.windowEnd",
+													"type": "Expression"
+												}
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 2
+									},
+									"inputs": [
+										{
+											"referenceName": "S3LeapDataSet_Cloud3_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_V2_Cloud3",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "DeleteFiles_Cloud3",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "LeapCSV_Cloud3_Staging",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "S3LeapDataSet_Cloud3_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AmazonS3ReadSettings",
+											"recursive": true
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-05-29T19:10:03Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3_V2_NoDelete')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -8043,220 +8255,6 @@
 				},
 				"folder": {
 					"name": "API"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_16Jun2022')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "spCalculateLSSSchemeAgainstActData-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLSSSchemeAgainstActData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spCalculateLuckDrawStore-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spTAS_UpdateTeleCallingActGPPoints-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLuckDrawStore]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "FiveStar Data Transfer",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "spCalculateLSSSchemeAgainstActData-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "SqlDWSink",
-								"allowCopyCommand": true,
-								"copyCommandSettings": {}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "TeleCallingId",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "TeleCallingId",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "GPPoints",
-											"type": "Byte"
-										},
-										"sink": {
-											"name": "GPPoints",
-											"type": "Byte"
-										}
-									},
-									{
-										"source": {
-											"name": "ParameterId",
-											"type": "Byte"
-										},
-										"sink": {
-											"name": "ParameterId",
-											"type": "Byte"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_tmpTeleCallingFiveStarGPPoints",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_tmpTAS_FiveStarGPPoints",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "spTAS_UpdateTeleCallingActGPPoints-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "FiveStar Data Transfer",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_UpdateTeleCallingActGPPoints]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
 				},
 				"annotations": []
 			},
