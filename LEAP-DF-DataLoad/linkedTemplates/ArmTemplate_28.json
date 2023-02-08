@@ -50,20 +50,98 @@
 		"CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_windowEnd": {
 			"type": "string",
 			"defaultValue": "@trigger().scheduledTime"
-		},
-		"LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/NCSDataTransfer-ASTIX-TO-DF_Historical')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyNCS_ASTIX_To_DF",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpDeleteNCSTmpTable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyNCS_ASTIX_To_DF",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "SpDeleteNCSTmpTable",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[SpDeleteNCSTmpTable]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spExecuteSUBDDailySP",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "CopyNCS_ASTIX_To_DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spExecuteSUBDDailySP]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"folder": {
+					"name": "NCS"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/TestPipeline_06Jun')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -2345,36 +2423,6 @@
 						}
 					},
 					{
-						"name": "DW_Resume_Scale DW200_V2_copy1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_PCode_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Resume_Scale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"ScaleVal": "DW200c",
-								"flgcalled": 1
-							}
-						}
-					},
-					{
 						"name": "DCC_Processing",
 						"type": "ExecutePipeline",
 						"dependsOn": [
@@ -2396,11 +2444,17 @@
 						}
 					},
 					{
-						"name": "AS_ResumeandScale_S8",
+						"name": "FinalScale_V2",
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "DW_Resume_Scale DW200_V2_copy1",
+								"activity": "DCC",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "AS_CubeProcess_PCode_Sync_Fact",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -2409,7 +2463,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "AS_ResumeandScale",
+								"referenceName": "FinalScale_V2",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -5335,37 +5389,6 @@
 						"frequency": "Day",
 						"interval": 1,
 						"startTime": "2021-02-28T09:00:00",
-						"timeZone": "India Standard Time"
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_WithoutProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataMovement_WithoutLoading",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowStart')]",
-							"windowEnd": "[parameters('LeapFileLoading_WithoutProcessing_properties_LeapDataMovement_WithoutLoading_parameters_windowEnd')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-03-02T08:00:00",
 						"timeZone": "India Standard Time"
 					}
 				}
