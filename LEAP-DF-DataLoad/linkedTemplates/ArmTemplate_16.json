@@ -25,6 +25,38 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/TASOrderLogStorageDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "NCSdataStorageLink",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "StagingSource"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": {
+							"value": "@dataset().Directory",
+							"type": "Expression"
+						},
+						"container": "tasorderlog"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/WinITCSV_Staging')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -925,111 +957,6 @@
 							]
 						}
 					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DS_tmpAPIExtractDayPSRRawBranch_Nov')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "DataFoundationDB",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "DF_DBConnection/LEAP Tables"
-				},
-				"annotations": [],
-				"type": "AzureSqlDWTable",
-				"schema": [
-					{
-						"name": "branch_code",
-						"type": "varchar"
-					},
-					{
-						"name": "branch_name",
-						"type": "varchar"
-					},
-					{
-						"name": "cfr_date",
-						"type": "varchar"
-					},
-					{
-						"name": "channel_name",
-						"type": "varchar"
-					},
-					{
-						"name": "category",
-						"type": "varchar"
-					},
-					{
-						"name": "brandform",
-						"type": "varchar"
-					},
-					{
-						"name": "sub_brandform",
-						"type": "varchar"
-					},
-					{
-						"name": "orders",
-						"type": "varchar"
-					},
-					{
-						"name": "supply",
-						"type": "varchar"
-					},
-					{
-						"name": "unserved_demand_qty",
-						"type": "varchar"
-					},
-					{
-						"name": "cfr_per",
-						"type": "varchar"
-					},
-					{
-						"name": "FileName",
-						"type": "varchar"
-					},
-					{
-						"name": "LastModifiedDatetime",
-						"type": "varchar"
-					},
-					{
-						"name": "FileSetId",
-						"type": "bigint",
-						"precision": 19
-					},
-					{
-						"name": "BranchNodeId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "BranchNodeType",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SBFNodeid",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SBFNodeType",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "ChannelId",
-						"type": "int",
-						"precision": 10
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tmpAPIExtractDayPSRRawBranch"
 				}
 			},
 			"dependsOn": []
@@ -4879,6 +4806,623 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/APIDataFileGeneration_Nov')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup All Distributor",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "DataDatetime",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spGetDbrList]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_DF_NC_Sales_SUBD",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach Distributor",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup All Distributor",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup All Distributor').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "Copy data",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderQuery": {
+												"value": "SELECT * FROM tmpAPIExtractDayPSRRawBranch_Nov WHERE DistCode='@{item().DistributorCode}'",
+												"type": "Expression"
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"mappings": [
+												{
+													"source": {
+														"name": "Source",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Source",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "DistCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "DistCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "BranchCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "BranchCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "BranchName",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "BranchName",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "Date",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Date",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "DocNumber",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "DocNumber",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "ApplyToDocNum",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "ApplyToDocNum",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "TransactionType",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "TransactionType",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "DSECode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "DSECode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "DSEName",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "DSEName",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "StoreCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "StoreCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "ChnlCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "ChnlCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "ChnlName",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "ChnlName",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "CustTypeCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "CustTypeCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "CustTypeName",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "CustTypeName",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "Pcode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Pcode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "BatchCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "BatchCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "SubbfCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "SubbfCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "SubbfName",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "SubbfName",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "UPC",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "UPC",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "Qty",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Qty",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "GrossValue",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "GrossValue",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "Discount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Discount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "TaxableScheme",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "TaxableScheme",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "SGSTAmount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "SGSTAmount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "CGSTAmount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "CGSTAmount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "IGSTAmount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "IGSTAmount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "CessAmount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "CessAmount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "NetAmount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "NetAmount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "TaxonDiscount",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "TaxonDiscount",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "TaxonScheme",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "TaxonScheme",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "Retailing",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Retailing",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "PONumber",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "PONumber",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "Reason",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "Reason",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "OrderMode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "OrderMode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												},
+												{
+													"source": {
+														"name": "TCCode",
+														"type": "String",
+														"physicalType": "varchar"
+													},
+													"sink": {
+														"name": "TCCode",
+														"type": "String",
+														"physicalType": "String"
+													}
+												}
+											],
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "DS_tmpAPIExtractDayPSRRawBranch_Nov",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapAPIFileDataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"directory": "apidatacontainer",
+												"FolderPath": {
+													"value": "@{concat('2022', '/Nov')}",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@{concat('DayPSRRawBranch','_Nov_2022','_',item().DistributorCode,'.csv')}",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "DataDatetime",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "DeleteDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "TimeToday",
+							"value": {
+								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),1,'Day'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "DeleteDate",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "DataDeleteDate",
+							"value": {
+								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),8,'Day'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"variables": {
+					"TimeToday": {
+						"type": "String"
+					},
+					"DataDeleteDate": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "API"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/APIDataFileGeneration_copy1')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -6223,227 +6767,6 @@
 				},
 				"folder": {
 					"name": "DF-To-TAS"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Cloud1Processing_Checking')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Until Cloud 1 Processing Done",
-						"type": "Until",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@or(not(equals(variables('flgFullProcessingPending'), '1')),\nnot(greaterOrEquals(int(variables('MaxNoofCheck')),int(variables('CurrentCountNoofCheck')))))\n",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "Set flgFullProcessingPending",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "SpGetCloudFileLoadingStatus_Cloud1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "flgFullProcessingPending",
-										"value": {
-											"value": "@string(activity('SpGetCloudFileLoadingStatus_Cloud1').output.firstRow.flgLoadingDone)",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "SpGetCloudFileLoadingStatus_Cloud1",
-									"type": "Lookup",
-									"dependsOn": [
-										{
-											"activity": "Count Completed",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus_Check]",
-											"storedProcedureParameters": {
-												"CloudInstance": {
-													"type": "Byte",
-													"value": "1"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Set CurrentCountNoofCheck",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "SpGetCloudFileLoadingStatus_Cloud1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "CurrentCountNoofCheck",
-										"value": {
-											"value": "@string(add(int(variables('PreviousCountNoofCheck')),1))",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "Count Completed",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "Set variable2",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "PreviousCountNoofCheck",
-										"value": {
-											"value": "@variables('CurrentCountNoofCheck')",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "If Condition1",
-									"type": "IfCondition",
-									"dependsOn": [
-										{
-											"activity": "Set flgFullProcessingPending",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@equals(variables('flgFullProcessingPending'),'1')",
-											"type": "Expression"
-										},
-										"ifTrueActivities": [
-											{
-												"name": "Wait 10 min",
-												"type": "Wait",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"waitTimeInSeconds": 1
-												}
-											}
-										]
-									}
-								},
-								{
-									"name": "Set variable1",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "If Condition1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "checkvalue",
-										"value": {
-											"value": "@string(greaterOrEquals(variables('MaxNoofCheck'),variables('CurrentCountNoofCheck')))",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "Set variable2",
-									"type": "SetVariable",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "checkvalue1",
-										"value": {
-											"value": "@string(variables('MaxNoofCheck'))",
-											"type": "Expression"
-										}
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"variables": {
-					"flgFullProcessingPending": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"MaxNoofCheck": {
-						"type": "String",
-						"defaultValue": "10"
-					},
-					"CurrentCountNoofCheck": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"PreviousCountNoofCheck": {
-						"type": "String",
-						"defaultValue": "0"
-					},
-					"checkvalue": {
-						"type": "String",
-						"defaultValue": "0"
-					},
-					"checkvalue1": {
-						"type": "String",
-						"defaultValue": "0"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
 				},
 				"annotations": []
 			},
