@@ -27,6 +27,18 @@
 			"type": "string",
 			"defaultValue": "@{concat('/', formatDateTime(trigger().scheduledTime, 'yyyy'), '/', formatDateTime(trigger().scheduledTime, 'MM'), '/', formatDateTime(trigger().scheduledTime, 'dd'), '/')}"
 		},
+		"LeapDataLoading_Step1_properties_LeapDataFullProcessDaily_Step1_parameters_DataProcessDate": {
+			"type": "string",
+			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
+		},
+		"LeapDataLoading_Step1_properties_LeapDataFullProcessDaily_Step1_parameters_Container": {
+			"type": "string",
+			"defaultValue": "cntleap"
+		},
+		"LeapDataLoading_Step1_properties_LeapDataFullProcessDaily_Step1_parameters_Directory": {
+			"type": "string",
+			"defaultValue": "@{concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')}"
+		},
 		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate": {
 			"type": "string",
 			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
@@ -39,17 +51,9 @@
 			"type": "string",
 			"defaultValue": "@{concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')}"
 		},
-		"LeapDataLoading_Step1_properties_LeapDataFullProcessDaily_Step1_parameters_DataProcessDate": {
+		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Step": {
 			"type": "string",
-			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
-		},
-		"LeapDataLoading_Step1_properties_LeapDataFullProcessDaily_Step1_parameters_Container": {
-			"type": "string",
-			"defaultValue": "cntleap"
-		},
-		"LeapDataLoading_Step1_properties_LeapDataFullProcessDaily_Step1_parameters_Directory": {
-			"type": "string",
-			"defaultValue": "@{concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')}"
+			"defaultValue": "1"
 		}
 	},
 	"variables": {
@@ -120,6 +124,13 @@
 												"CloudInstance": {
 													"type": "Byte",
 													"value": "3"
+												},
+												"Step": {
+													"type": "Byte",
+													"value": {
+														"value": "@pipeline().parameters.Step",
+														"type": "Expression"
+													}
 												}
 											},
 											"queryTimeout": "02:00:00",
@@ -191,6 +202,10 @@
 											"CycleID": {
 												"value": "@pipeline().parameters.CycleID",
 												"type": "Expression"
+											},
+											"Step": {
+												"value": "@pipeline().parameters.Step",
+												"type": "Expression"
 											}
 										}
 									}
@@ -239,6 +254,9 @@
 						"type": "string"
 					},
 					"CycleID": {
+						"type": "string"
+					},
+					"Step": {
 						"type": "string"
 					}
 				},
@@ -1292,6 +1310,10 @@
 								"CycleID": {
 									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
 									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
+									"type": "Expression"
 								}
 							}
 						}
@@ -1321,6 +1343,10 @@
 								},
 								"CycleID": {
 									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
 									"type": "Expression"
 								}
 							}
@@ -1352,6 +1378,10 @@
 								"CycleID": {
 									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
 									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
+									"type": "Expression"
 								}
 							}
 						}
@@ -1363,6 +1393,9 @@
 				},
 				"parameters": {
 					"DataProcessDate": {
+						"type": "string"
+					},
+					"Step": {
 						"type": "string"
 					}
 				},
@@ -1825,6 +1858,10 @@
 							"parameters": {
 								"DataProcessDate": {
 									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
 									"type": "Expression"
 								}
 							}
@@ -5150,6 +5187,9 @@
 					},
 					"Directory": {
 						"type": "string"
+					},
+					"Step": {
+						"type": "string"
 					}
 				},
 				"folder": {
@@ -5682,48 +5722,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/NewLeapDataProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataFullProcessDaily_V2",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"DataProcessDate": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate')]",
-							"Container": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Container')]",
-							"Directory": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Directory')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2022-05-09T04:43:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								30
-							],
-							"hours": [
-								4
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataFullProcessDaily_V2')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataLoading_Step1')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -5763,6 +5761,49 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/LeapDataFullProcessDaily_Step1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/NewLeapDataProcessing')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataFullProcessDaily_V2",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DataProcessDate": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate')]",
+							"Container": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Container')]",
+							"Directory": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Directory')]",
+							"Step": "[parameters('NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_Step')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-05-09T04:43:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								30
+							],
+							"hours": [
+								4
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataFullProcessDaily_V2')]"
 			]
 		}
 	]
