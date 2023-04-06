@@ -1119,33 +1119,6 @@
 						}
 					},
 					{
-						"name": "spAPI_PopulateExtractIDCMP-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAPI_PopulateExtractIDCMP]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
 						"name": "spAS_PopulateDimTables-DF",
 						"type": "SqlServerStoredProcedure",
 						"dependsOn": [
@@ -1269,79 +1242,6 @@
 						"linkedServiceName": {
 							"referenceName": "TASDatabase_Check",
 							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "MasterDataForAPI",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAPI_PopulateExtractIDCMP-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "MasterDataForAPI",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "APIDataFileGeneration",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "MasterDataForAPI",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "spAS_PopulateDimTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "APIDataFileGeneration",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Success Notification",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "APIDataFileGeneration",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Alok@astix.in,gaurav@astix.in,phegade.md@pg.com,bussa.r@pg.com,varun@astix.in,helpdesk@astix.in,trivedi.dt.1@pg.com",
-								"Subject": "API Process Success",
-								"ErrorMessage": "API process and files generated successful"
-							}
 						}
 					},
 					{
@@ -1702,7 +1602,7 @@
 							"waitOnCompletion": true,
 							"parameters": {
 								"ScaleVal": "DW300c",
-								"flgcalled": 1
+								"flgcalled": 0
 							}
 						}
 					},
@@ -1953,12 +1853,6 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
-							},
-							{
-								"activity": "MasterDataForAPI",
-								"dependencyConditions": [
-									"Succeeded"
-								]
 							}
 						],
 						"policy": {
@@ -2007,6 +1901,27 @@
 						"typeProperties": {
 							"pipeline": {
 								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "DF-To-TAS Transfer",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spTAS_PopulateSBDGaps-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DF-To-TAS Transfer",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
