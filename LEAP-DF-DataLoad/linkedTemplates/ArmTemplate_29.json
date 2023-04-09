@@ -23,6 +23,14 @@
 			"type": "string",
 			"defaultValue": "@trigger().scheduledTime"
 		},
+		"LeapStagingFileCleanup_properties_CopyLeapStaging-To-ADLS-AllCloudFiles_parameters_Directory": {
+			"type": "string",
+			"defaultValue": "cntleap"
+		},
+		"LeapStagingFileCleanup_properties_CopyLeapStaging-To-ADLS-AllCloudFiles_parameters_Folder": {
+			"type": "string",
+			"defaultValue": "@{concat('/', formatDateTime(trigger().scheduledTime, 'yyyy'), '/', formatDateTime(trigger().scheduledTime, 'MM'), '/', formatDateTime(trigger().scheduledTime, 'dd'), '/')}"
+		},
 		"CCCRDataProcessing_properties_CCCRDataProcessing_V2_parameters_DataDate": {
 			"type": "string",
 			"defaultValue": "@formatDateTime(utcNow(),'dd-MMM-yyyy')"
@@ -121,6 +129,45 @@
 						"interval": 1,
 						"startTime": "2021-02-18T09:30:00",
 						"timeZone": "India Standard Time"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapStagingFileCleanup')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "CopyLeapStaging-To-ADLS-AllCloudFiles",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"Directory": "[parameters('LeapStagingFileCleanup_properties_CopyLeapStaging-To-ADLS-AllCloudFiles_parameters_Directory')]",
+							"Folder": "[parameters('LeapStagingFileCleanup_properties_CopyLeapStaging-To-ADLS-AllCloudFiles_parameters_Folder')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2023-04-09T06:06:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								23
+							]
+						}
 					}
 				}
 			},
@@ -5194,219 +5241,6 @@
 					"MaxNoofCheck": {
 						"type": "String",
 						"defaultValue": "20"
-					},
-					"CurrentCountNoofCheck": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"PreviousCountNoofCheck": {
-						"type": "String",
-						"defaultValue": "0"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/Cloud1Pipeline')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Cloud1Processing_Step1')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Until Cloud 1 Processing Done",
-						"type": "Until",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@or(not(equals(variables('flgFullProcessingPending'), '1')),\nnot(greaterOrEquals(int(variables('MaxNoofCheck')),int(variables('CurrentCountNoofCheck')))))\n",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "Set flgFullProcessingPending",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "SpGetCloudFileLoadingStatus_Cloud1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "flgFullProcessingPending",
-										"value": {
-											"value": "@string(activity('SpGetCloudFileLoadingStatus_Cloud1').output.firstRow.flgLoadingDone)",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "SpGetCloudFileLoadingStatus_Cloud1",
-									"type": "Lookup",
-									"dependsOn": [
-										{
-											"activity": "Cloud1Pipeline",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus]",
-											"storedProcedureParameters": {
-												"CloudInstance": {
-													"type": "Byte",
-													"value": "1"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnectionV2",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "Set CurrentCountNoofCheck",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "SpGetCloudFileLoadingStatus_Cloud1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "CurrentCountNoofCheck",
-										"value": {
-											"value": "@string(add(int(variables('PreviousCountNoofCheck')),1))",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "Count Completed",
-									"type": "SetVariable",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "PreviousCountNoofCheck",
-										"value": {
-											"value": "@variables('CurrentCountNoofCheck')",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "Cloud1Pipeline",
-									"type": "ExecutePipeline",
-									"dependsOn": [
-										{
-											"activity": "Count Completed",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "Cloud1Pipeline",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"DataProcessDate": {
-												"value": "@pipeline().parameters.DataProcessDate",
-												"type": "Expression"
-											},
-											"CycleID": {
-												"value": "@pipeline().parameters.CycleID",
-												"type": "Expression"
-											}
-										}
-									}
-								},
-								{
-									"name": "If Condition1",
-									"type": "IfCondition",
-									"dependsOn": [
-										{
-											"activity": "Set flgFullProcessingPending",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@equals(variables('flgFullProcessingPending'),'1')",
-											"type": "Expression"
-										},
-										"ifTrueActivities": [
-											{
-												"name": "Wait 1 min",
-												"type": "Wait",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"waitTimeInSeconds": 60
-												}
-											}
-										]
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"CycleID": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"flgFullProcessingPending": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"MaxNoofCheck": {
-						"type": "String",
-						"defaultValue": "1"
 					},
 					"CurrentCountNoofCheck": {
 						"type": "String",
