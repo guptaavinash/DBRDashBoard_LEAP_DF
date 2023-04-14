@@ -221,6 +221,90 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/FinalCubeProcessing')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "PCode_Maximus_Job",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_PCode_Sync_Fact",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PCode_Maximus_Job",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DMinus1Date": {
+									"value": "@pipeline().parameters.DMinusOneDate",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "FinalScale_V2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "PCode_Maximus_Job",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "FinalScale_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "AS_CubeProcess_PCode_Sync_Fact",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"DMinusOneDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Cloud1Pipeline')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1014,6 +1098,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -1293,6 +1383,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -1317,6 +1413,12 @@
 						"dependsOn": [
 							{
 								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1440,6 +1542,18 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "CopyLeap_Staging-To-DB_COHGAP",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spDailyRefreshSchemeData_Index",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"userProperties": [],
@@ -1452,7 +1566,7 @@
 							"parameters": {
 								"Scaleval": "S6",
 								"tier": "Standard",
-								"flgcalled": "0"
+								"flgcalled": 0
 							}
 						}
 					},
@@ -1641,6 +1755,12 @@
 								"dependencyConditions": [
 									"Succeeded"
 								]
+							},
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
 							}
 						],
 						"policy": {
@@ -1707,6 +1827,12 @@
 						"dependsOn": [
 							{
 								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1781,6 +1907,12 @@
 						"dependsOn": [
 							{
 								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1866,32 +1998,6 @@
 						}
 					},
 					{
-						"name": "PCode_Maximus_Job",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_PCode_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "PCode_Maximus_Job",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinus1Date": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
 						"name": "DCC_Processing",
 						"type": "ExecutePipeline",
 						"dependsOn": [
@@ -1906,27 +2012,6 @@
 						"typeProperties": {
 							"pipeline": {
 								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalScale_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "PCode_Maximus_Job",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalScale_V2",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
@@ -1997,17 +2082,17 @@
 						}
 					},
 					{
-						"name": "AS_CubeProcess_PCode_Sync_Fact",
+						"name": "FinalCubeProcessing",
 						"type": "ExecutePipeline",
 						"dependsOn": [
 							{
-								"activity": "AS_ResumeandScale_S9",
+								"activity": "DW_Resume_Scale DW200_V2",
 								"dependencyConditions": [
 									"Succeeded"
 								]
 							},
 							{
-								"activity": "DW_Resume_Scale DW200_V2",
+								"activity": "AS_ResumeandScale_S9",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -2016,11 +2101,89 @@
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
-								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact",
+								"referenceName": "FinalCubeProcessing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DMinusOneDate": {
+									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "CopyLeap_Staging-To-DB_COHGAP",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeap_Staging-To-DB_COHGAP",
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
 							"parameters": {}
+						}
+					},
+					{
+						"name": "spDailyRefreshSchemeData_Index",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SQL_Scale S6 1600 DTU",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDailyRefreshSchemeData_Index]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SQL_Scale S6 1600 DTU",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SQL_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "S9",
+								"tier": "Standard",
+								"flgcalled": 0
+							}
 						}
 					}
 				],
@@ -2033,7 +2196,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/FinalCubeProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2_Check')]",
@@ -5035,42 +5200,6 @@
 						"schedule": {
 							"minutes": [
 								10
-							],
-							"hours": [
-								6
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/WINTIT Processing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "WINIT Daily Processing",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2022-10-11T10:29:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0
 							],
 							"hours": [
 								6
