@@ -6,6 +6,10 @@
 			"type": "string",
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
+		},
+		"Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval": {
+			"type": "string",
+			"defaultValue": "DW400c"
 		}
 	},
 	"variables": {
@@ -13,92 +17,40 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_29Apr2023_copy1')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
+			"name": "[concat(parameters('factoryName'), '/Trigger_DW_Scale')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"activities": [
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
 					{
-						"name": "spCalculateLuckDrawStore-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spTAS_UpdateTeleCallingActGPPoints-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
+						"pipelineReference": {
+							"referenceName": "DW_Scale",
+							"type": "PipelineReference"
 						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLuckDrawStore]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "SQL_Scale S6 400 DTU",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spCalculateLuckDrawStore-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S6",
-								"tier": "Standard",
-								"flgcalled": 1
-							}
-						}
-					},
-					{
-						"name": "spTAS_UpdateTeleCallingActGPPoints-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_UpdateTeleCallingActGPPoints]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
+						"parameters": {
+							"Scaleval": "[parameters('Trigger_DW_Scale_properties_DW_Scale_parameters_Scaleval')]"
 						}
 					}
 				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2021-05-06T03:50:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								50
+							],
+							"hours": [
+								3
+							]
+						}
+					}
+				}
 			},
 			"dependsOn": []
 		},
