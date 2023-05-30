@@ -13,6 +13,116 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_Onefile')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SingleFileCopy_Onefile",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpDeleteOldtmpleapdata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SingleFileCopy_Onefile",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Container": "cntleap",
+								"Folder": {
+									"value": "@concat('/cochinfeb20psr', '/')\n",
+									"type": "Expression"
+								},
+								"ProcessDate": {
+									"value": "@pipeline().parameters.ProcessDate",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "SpDeleteOldtmpleapdata",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[SpDeleteDatafromtmpleaptable]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spLoadLeapDPSRIndividualProcess",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SingleFileCopy_Onefile",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spLoadLeapDPSRIndividualProcess]",
+							"storedProcedureParameters": {
+								"dt": {
+									"value": {
+										"value": "@pipeline().parameters.ProcessDate",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"ProcessDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_RTDXFormat')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -4858,98 +4968,6 @@
 				},
 				"folder": {
 					"name": "V2 Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_V2_Test')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "SpCycleStart",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
-								"storedProcedureParameters": {
-									"flgInOut": {
-										"type": "Byte",
-										"value": "1"
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_8_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_8_V2_Cloud1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"Container": {
-						"type": "string"
-					},
-					"Directory": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
