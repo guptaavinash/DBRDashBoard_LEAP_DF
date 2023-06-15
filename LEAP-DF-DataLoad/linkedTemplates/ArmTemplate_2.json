@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"TASDatabase_Check_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'TASDatabase_Check'"
+		},
 		"TASDatabase_Test_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'TASDatabase_Test'"
@@ -24,6 +28,19 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/TASDatabase_Check')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('TASDatabase_Check_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/TASDatabase_Test')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
@@ -81,230 +98,6 @@
 			"properties": {
 				"type": "SelfHosted",
 				"typeProperties": {}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/AS_ResumeandScale_S4')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "AS_Status_ActivityAPI",
-						"type": "WebActivity",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 1,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/?api-version=2017-08-01",
-							"method": "GET",
-							"headers": {},
-							"body": {
-								"value": "{\"Dummy\":\"Dummy\"}",
-								"type": "Expression"
-							},
-							"authentication": {
-								"type": "MSI",
-								"resource": "https://management.core.windows.net"
-							}
-						}
-					},
-					{
-						"name": "Set AS State",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "AS_Status_ActivityAPI",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "State",
-							"value": {
-								"value": "@activity('AS_Status_ActivityAPI').output.properties.state",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "If AS Paused",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "Set AS State",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Set AS SKU",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@equals(variables('State'),'Paused')",
-								"type": "Expression"
-							},
-							"ifTrueActivities": [
-								{
-									"name": "AS_Resume_ActivityAPI",
-									"type": "WebActivity",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 1,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/resume?api-version=2017-08-01",
-										"method": "POST",
-										"headers": {},
-										"body": {
-											"value": "{\"Dummy\":\"Dummy\"}",
-											"type": "Expression"
-										},
-										"authentication": {
-											"type": "MSI",
-											"resource": "https://management.core.windows.net"
-										}
-									}
-								},
-								{
-									"name": "Wait AS Resuming",
-									"type": "Wait",
-									"dependsOn": [
-										{
-											"activity": "AS_Resume_ActivityAPI",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"waitTimeInSeconds": 300
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "Set AS SKU",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "AS_Status_ActivityAPI",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "SKU",
-							"value": {
-								"value": "@activity('AS_Status_ActivityAPI').output.sku.name",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "If AS not S4",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "If AS Paused",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@not(equals(variables('SKU'),'S4'))",
-								"type": "Expression"
-							},
-							"ifTrueActivities": [
-								{
-									"name": "AS_Scale_S4",
-									"type": "WebActivity",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 1,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DBRDashboard/providers/Microsoft.AnalysisServices/servers/dbrdashboard/?api-version=2017-08-01",
-										"method": "PATCH",
-										"headers": {},
-										"body": {
-											"value": "{\n   \"sku\":{\n      \"capacity\":1,\n      \"name\":\"S4\",\n      \"tier\":\"Standard\"\n   }\n}",
-											"type": "Expression"
-										},
-										"authentication": {
-											"type": "MSI",
-											"resource": "https://management.azure.com/"
-										}
-									}
-								},
-								{
-									"name": "Wait_AS_Scaling",
-									"type": "Wait",
-									"dependsOn": [
-										{
-											"activity": "AS_Scale_S4",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"waitTimeInSeconds": 300
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"variables": {
-					"State": {
-						"type": "String"
-					},
-					"SKU": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "Resource Management"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},
@@ -394,6 +187,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "ArrayVar",
@@ -414,6 +213,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "status",
@@ -434,6 +239,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "RefreshId",
@@ -504,6 +315,12 @@
 											]
 										}
 									],
+									"policy": {
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
 									"userProperties": [],
 									"typeProperties": {
 										"variableName": "status",
@@ -744,6 +561,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "ArrayVar",
@@ -764,6 +587,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "status",
@@ -784,6 +613,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "RefreshId",
@@ -853,6 +688,12 @@
 											]
 										}
 									],
+									"policy": {
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
 									"userProperties": [],
 									"typeProperties": {
 										"variableName": "status",
@@ -1068,6 +909,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "ArrayVar",
@@ -1088,6 +935,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "status",
@@ -1108,6 +961,12 @@
 								]
 							}
 						],
+						"policy": {
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
 						"userProperties": [],
 						"typeProperties": {
 							"variableName": "RefreshId",
@@ -1178,6 +1037,12 @@
 											]
 										}
 									],
+									"policy": {
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
 									"userProperties": [],
 									"typeProperties": {
 										"variableName": "status",
@@ -1852,7 +1717,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/TASDatabase_Check')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing-TASProcessing')]",
@@ -2120,7 +1987,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/TASDatabase_Check')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_29Apr2023_copy1')]",
@@ -2210,7 +2079,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/TASDatabase_Check')]"
+			]
 		}
 	]
 }
