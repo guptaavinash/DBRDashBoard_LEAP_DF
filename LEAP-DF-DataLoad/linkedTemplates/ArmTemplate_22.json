@@ -13,6 +13,272 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_OnlyProcessing_1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupAllFilesCome",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCheckLeapDataLoaded]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "TASDBConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "WhenAllFilesCome",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "LookupAllFilesCome",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(activity('LookupAllFilesCome').output.firstRow.flgDataloaded)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "LoadLeapTasIntegration",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spLoadLeapTasIntegration]"
+									},
+									"linkedServiceName": {
+										"referenceName": "TASDatabase",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "PopulateDSETeleCallingStores",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "WhenAllFilesCome",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateDSETeleCallingStores]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spDailyDataRefreshSalesData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IFDataTransferCanDone",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDailyDataRefreshSalesData]",
+							"storedProcedureParameters": {
+								"CalledFrom": {
+									"value": "1",
+									"type": "Byte"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "IFDataTransferCanDone",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "PopulateDSETeleCallingStores",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select flgPngDataTransfer from tblFlagDataProcess",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "TASDBConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Scale Down DB",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spOlapProcessing",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[Scale_S4_DB]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spOlapProcessing",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spDailyDataRefreshSalesData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spOlapProcessing]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SpDailyDataRefreshSalesData Error",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spDailyDataRefreshSalesData",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "avinash@astixsolutions.com,alok@astixsolutions.com,ashwani@astixsolutions.com",
+								"Subject": "Datafactory Error",
+								"ErrorMessage": "SpDailyDataRefreshSalesData failed, log on to portal for more details"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-08T03:37:36Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing-Set')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1656,6 +1922,1389 @@
 						"type": "Boolean",
 						"defaultValue": false
 					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LoadER-To-DB')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetFileDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetERFileDetails]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "Checkfiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetFileDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileDetails').output.value\n",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "GetFileList",
+									"type": "GetMetadata",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "ERStorageSourceDataset_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												},
+												"folder": " ",
+												"directory": "cntelasticrun"
+											}
+										},
+										"fieldList": [
+											"exists",
+											"itemName",
+											"lastModified",
+											"itemType"
+										],
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										},
+										"formatSettings": {
+											"type": "BinaryReadSettings"
+										}
+									}
+								},
+								{
+									"name": "If File Exists",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "GetFileList",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@activity('GetFileList').output.exists",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "IfFileFound",
+												"type": "Switch",
+												"dependsOn": [
+													{
+														"activity": "SpERFileImportLog_Start",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"on": {
+														"value": "@string(item().FileID)",
+														"type": "Expression"
+													},
+													"cases": [
+														{
+															"value": "150",
+															"activities": [
+																{
+																	"name": "ERStoremaster",
+																	"description": "Copy a file from the source store to the destination store.",
+																	"type": "Copy",
+																	"dependsOn": [],
+																	"policy": {
+																		"timeout": "7.00:00:00",
+																		"retry": 0,
+																		"retryIntervalInSeconds": 30,
+																		"secureOutput": false,
+																		"secureInput": false
+																	},
+																	"userProperties": [],
+																	"typeProperties": {
+																		"source": {
+																			"type": "DelimitedTextSource",
+																			"additionalColumns": [
+																				{
+																					"name": "Filename",
+																					"value": {
+																						"value": "@activity('GetFileList').output.itemName",
+																						"type": "Expression"
+																					}
+																				},
+																				{
+																					"name": "LastModifiedDatetime",
+																					"value": {
+																						"value": "@addminutes(utcnow(),330)",
+																						"type": "Expression"
+																					}
+																				},
+																				{
+																					"name": "FileSetID",
+																					"value": {
+																						"value": "0",
+																						"type": "Expression"
+																					}
+																				}
+																			],
+																			"storeSettings": {
+																				"type": "AzureBlobStorageReadSettings",
+																				"recursive": true,
+																				"wildcardFileName": {
+																					"value": "@activity('GetFileList').output.itemName",
+																					"type": "Expression"
+																				},
+																				"enablePartitionDiscovery": false
+																			},
+																			"formatSettings": {
+																				"type": "DelimitedTextReadSettings"
+																			},
+																			"recursive": false
+																		},
+																		"sink": {
+																			"type": "SqlDWSink",
+																			"allowPolyBase": true,
+																			"polyBaseSettings": {
+																				"rejectValue": 0,
+																				"rejectType": "value",
+																				"useTypeDefault": true
+																			},
+																			"disableMetricsCollection": false
+																		},
+																		"enableStaging": true,
+																		"stagingSettings": {
+																			"linkedServiceName": {
+																				"referenceName": "DFPolybaseStagingStorageLink",
+																				"type": "LinkedServiceReference"
+																			},
+																			"path": "polybasestaging"
+																		},
+																		"dataIntegrationUnits": 2,
+																		"translator": {
+																			"type": "TabularTranslator",
+																			"mappings": [
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 1
+																					},
+																					"sink": {
+																						"name": "srce_sys_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 2
+																					},
+																					"sink": {
+																						"name": "fact_type_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 3
+																					},
+																					"sink": {
+																						"name": "sbmsn_type_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 4
+																					},
+																					"sink": {
+																						"name": "due_period",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 5
+																					},
+																					"sink": {
+																						"name": "time_perd_type_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 6
+																					},
+																					"sink": {
+																						"name": "time_perd_start_date",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 7
+																					},
+																					"sink": {
+																						"name": "trade_channel_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 8
+																					},
+																					"sink": {
+																						"name": "cust_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 9
+																					},
+																					"sink": {
+																						"name": "store",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 10
+																					},
+																					"sink": {
+																						"name": "branch",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 11
+																					},
+																					"sink": {
+																						"name": "subd_flag",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 12
+																					},
+																					"sink": {
+																						"name": "in_coverage",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 13
+																					},
+																					"sink": {
+																						"name": "status",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 14
+																					},
+																					"sink": {
+																						"name": "golden",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 15
+																					},
+																					"sink": {
+																						"name": "store_name",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 16
+																					},
+																					"sink": {
+																						"name": "storeaddress_1",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 17
+																					},
+																					"sink": {
+																						"name": "storeaddress_2",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 18
+																					},
+																					"sink": {
+																						"name": "store_address_3",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 19
+																					},
+																					"sink": {
+																						"name": "zip_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 20
+																					},
+																					"sink": {
+																						"name": "generic_text_field_1",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 21
+																					},
+																					"sink": {
+																						"name": "generic_text_field_2",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 22
+																					},
+																					"sink": {
+																						"name": "generic_text_field_3",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 23
+																					},
+																					"sink": {
+																						"name": "generic_text_field_4",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 24
+																					},
+																					"sink": {
+																						"name": "generic_text_field_5",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 25
+																					},
+																					"sink": {
+																						"name": "generic_num_field_1",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 26
+																					},
+																					"sink": {
+																						"name": "generic_num_field_2",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 27
+																					},
+																					"sink": {
+																						"name": "generic_num_field_3",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 28
+																					},
+																					"sink": {
+																						"name": "generic_num_field_4",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 29
+																					},
+																					"sink": {
+																						"name": "generic_num_field_5",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 30
+																					},
+																					"sink": {
+																						"name": "extra_field_1",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 31
+																					},
+																					"sink": {
+																						"name": "extra_field_2",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 32
+																					},
+																					"sink": {
+																						"name": "extra_field_3",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 33
+																					},
+																					"sink": {
+																						"name": "subd",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 34
+																					},
+																					"sink": {
+																						"name": "extra_field_5",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 35
+																					},
+																					"sink": {
+																						"name": "extra_field_6",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 36
+																					},
+																					"sink": {
+																						"name": "extra_field_7",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 37
+																					},
+																					"sink": {
+																						"name": "extra_field_8",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 38
+																					},
+																					"sink": {
+																						"name": "extra_field_9",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 39
+																					},
+																					"sink": {
+																						"name": "extra_field_10",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 40
+																					},
+																					"sink": {
+																						"name": "extra_field_11",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 41
+																					},
+																					"sink": {
+																						"name": "extra_field_12",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 42
+																					},
+																					"sink": {
+																						"name": "extra_field_13",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 43
+																					},
+																					"sink": {
+																						"name": "extra_field_14",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 44
+																					},
+																					"sink": {
+																						"name": "extra_field_15",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 45
+																					},
+																					"sink": {
+																						"name": "extra_field_16",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 46
+																					},
+																					"sink": {
+																						"name": "extra_field_17",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 47
+																					},
+																					"sink": {
+																						"name": "extra_field_18",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 48
+																					},
+																					"sink": {
+																						"name": "extra_field_19",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"name": "Filename",
+																						"type": "String"
+																					},
+																					"sink": {
+																						"name": "FileName",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"name": "LastModifiedDatetime",
+																						"type": "String"
+																					},
+																					"sink": {
+																						"name": "LastModifiedDatetime",
+																						"type": "DateTime"
+																					}
+																				}
+																			]
+																		}
+																	},
+																	"inputs": [
+																		{
+																			"referenceName": "CSVDataSource_File_withoutGzip",
+																			"type": "DatasetReference",
+																			"parameters": {
+																				"Container": "cntelasticrun",
+																				"Directory": " ",
+																				"Filename": {
+																					"value": "@item().name",
+																					"type": "Expression"
+																				}
+																			}
+																		}
+																	],
+																	"outputs": [
+																		{
+																			"referenceName": "DS_Destination_table",
+																			"type": "DatasetReference",
+																			"parameters": {
+																				"tablename": {
+																					"value": "@item().temptablename",
+																					"type": "Expression"
+																				}
+																			}
+																		}
+																	]
+																},
+																{
+																	"name": "spLoadErSMFileManual",
+																	"type": "SqlServerStoredProcedure",
+																	"dependsOn": [
+																		{
+																			"activity": "ERStoremaster",
+																			"dependencyConditions": [
+																				"Succeeded"
+																			]
+																		}
+																	],
+																	"policy": {
+																		"timeout": "0.12:00:00",
+																		"retry": 0,
+																		"retryIntervalInSeconds": 30,
+																		"secureOutput": false,
+																		"secureInput": false
+																	},
+																	"userProperties": [],
+																	"typeProperties": {
+																		"storedProcedureName": "[[dbo].[spLoadErSMFileManual]",
+																		"storedProcedureParameters": {
+																			"Date": {
+																				"value": {
+																					"value": "@item().DataDate",
+																					"type": "Expression"
+																				},
+																				"type": "DateTime"
+																			},
+																			"FileName": {
+																				"value": {
+																					"value": "@item().name",
+																					"type": "Expression"
+																				},
+																				"type": "String"
+																			}
+																		}
+																	},
+																	"linkedServiceName": {
+																		"referenceName": "DataFoundationDB",
+																		"type": "LinkedServiceReference"
+																	}
+																}
+															]
+														},
+														{
+															"value": "151",
+															"activities": [
+																{
+																	"name": "ERSales",
+																	"description": "Copy a file from the source store to the destination store.",
+																	"type": "Copy",
+																	"dependsOn": [],
+																	"policy": {
+																		"timeout": "7.00:00:00",
+																		"retry": 0,
+																		"retryIntervalInSeconds": 30,
+																		"secureOutput": false,
+																		"secureInput": false
+																	},
+																	"userProperties": [],
+																	"typeProperties": {
+																		"source": {
+																			"type": "DelimitedTextSource",
+																			"additionalColumns": [
+																				{
+																					"name": "Filename",
+																					"value": {
+																						"value": "@activity('GetFileList').output.itemName",
+																						"type": "Expression"
+																					}
+																				},
+																				{
+																					"name": "LastModifiedDatetime",
+																					"value": {
+																						"value": "@addminutes(utcnow(),330)",
+																						"type": "Expression"
+																					}
+																				},
+																				{
+																					"name": "FileSetID",
+																					"value": {
+																						"value": "0",
+																						"type": "Expression"
+																					}
+																				}
+																			],
+																			"storeSettings": {
+																				"type": "AzureBlobStorageReadSettings",
+																				"recursive": true,
+																				"wildcardFileName": {
+																					"value": "@activity('GetFileList').output.itemName",
+																					"type": "Expression"
+																				},
+																				"enablePartitionDiscovery": false
+																			},
+																			"formatSettings": {
+																				"type": "DelimitedTextReadSettings"
+																			},
+																			"recursive": false
+																		},
+																		"sink": {
+																			"type": "SqlDWSink",
+																			"allowPolyBase": true,
+																			"polyBaseSettings": {
+																				"rejectValue": 0,
+																				"rejectType": "value",
+																				"useTypeDefault": true
+																			},
+																			"disableMetricsCollection": false
+																		},
+																		"enableStaging": true,
+																		"stagingSettings": {
+																			"linkedServiceName": {
+																				"referenceName": "DFPolybaseStagingStorageLink",
+																				"type": "LinkedServiceReference"
+																			},
+																			"path": "polybasestaging"
+																		},
+																		"dataIntegrationUnits": 2,
+																		"translator": {
+																			"type": "TabularTranslator",
+																			"mappings": [
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 1
+																					},
+																					"sink": {
+																						"name": "srce_sys_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 2
+																					},
+																					"sink": {
+																						"name": "fact_type_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 3
+																					},
+																					"sink": {
+																						"name": "sbmsn_type_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 4
+																					},
+																					"sink": {
+																						"name": "due_perd",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 5
+																					},
+																					"sink": {
+																						"name": "time_perd_type_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 6
+																					},
+																					"sink": {
+																						"name": "day_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 7
+																					},
+																					"sink": {
+																						"name": "derived_isis_cust_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 8
+																					},
+																					"sink": {
+																						"name": "prod_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 9
+																					},
+																					"sink": {
+																						"name": "geo_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 10
+																					},
+																					"sink": {
+																						"name": "org_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 11
+																					},
+																					"sink": {
+																						"name": "subd",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 12
+																					},
+																					"sink": {
+																						"name": "proft_ctr_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 13
+																					},
+																					"sink": {
+																						"name": "scndr_ship_flag",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 14
+																					},
+																					"sink": {
+																						"name": "trade_chanl_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 15
+																					},
+																					"sink": {
+																						"name": "iso_crncy_code_char",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 16
+																					},
+																					"sink": {
+																						"name": "mm_hybrid_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 17
+																					},
+																					"sink": {
+																						"name": "func_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 18
+																					},
+																					"sink": {
+																						"name": "captl_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 19
+																					},
+																					"sink": {
+																						"name": "measr_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 20
+																					},
+																					"sink": {
+																						"name": "brand",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 21
+																					},
+																					"sink": {
+																						"name": "genrc_dmnsn_1_type_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 22
+																					},
+																					"sink": {
+																						"name": "branch",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 23
+																					},
+																					"sink": {
+																						"name": "genrc_dmnsn_2_type_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 24
+																					},
+																					"sink": {
+																						"name": "genrc_dmnsn_2_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 25
+																					},
+																					"sink": {
+																						"name": "genrc_dmnsn_3_type_id",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 26
+																					},
+																					"sink": {
+																						"name": "store",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 27
+																					},
+																					"sink": {
+																						"name": "fact_qlty_code",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 28
+																					},
+																					"sink": {
+																						"name": "niv_flag",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 29
+																					},
+																					"sink": {
+																						"name": "niv_total",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 30
+																					},
+																					"sink": {
+																						"name": "attr_val_2",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 31
+																					},
+																					"sink": {
+																						"name": "su",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"type": "String",
+																						"ordinal": 32
+																					},
+																					"sink": {
+																						"name": "giv",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"name": "Filename",
+																						"type": "String"
+																					},
+																					"sink": {
+																						"name": "FileName",
+																						"type": "String"
+																					}
+																				},
+																				{
+																					"source": {
+																						"name": "LastModifiedDatetime",
+																						"type": "String"
+																					},
+																					"sink": {
+																						"name": "LastModifiedDatetime",
+																						"type": "DateTime"
+																					}
+																				}
+																			]
+																		}
+																	},
+																	"inputs": [
+																		{
+																			"referenceName": "CSVDataSource_File_withoutGzip",
+																			"type": "DatasetReference",
+																			"parameters": {
+																				"Container": "cntelasticrun",
+																				"Directory": " ",
+																				"Filename": {
+																					"value": "@item().name",
+																					"type": "Expression"
+																				}
+																			}
+																		}
+																	],
+																	"outputs": [
+																		{
+																			"referenceName": "DS_Destination_table",
+																			"type": "DatasetReference",
+																			"parameters": {
+																				"tablename": {
+																					"value": "@item().temptablename",
+																					"type": "Expression"
+																				}
+																			}
+																		}
+																	]
+																},
+																{
+																	"name": "spLoadErSalesFileManual",
+																	"type": "SqlServerStoredProcedure",
+																	"dependsOn": [
+																		{
+																			"activity": "ERSales",
+																			"dependencyConditions": [
+																				"Succeeded"
+																			]
+																		}
+																	],
+																	"policy": {
+																		"timeout": "0.12:00:00",
+																		"retry": 0,
+																		"retryIntervalInSeconds": 30,
+																		"secureOutput": false,
+																		"secureInput": false
+																	},
+																	"userProperties": [],
+																	"typeProperties": {
+																		"storedProcedureName": "[[dbo].[spLoadErSalesFileManual]",
+																		"storedProcedureParameters": {
+																			"Date": {
+																				"value": {
+																					"value": "@item().DataDate",
+																					"type": "Expression"
+																				},
+																				"type": "DateTime"
+																			},
+																			"FileName": {
+																				"value": {
+																					"value": "@item().name",
+																					"type": "Expression"
+																				},
+																				"type": "String"
+																			}
+																		}
+																	},
+																	"linkedServiceName": {
+																		"referenceName": "DataFoundationDB",
+																		"type": "LinkedServiceReference"
+																	}
+																}
+															]
+														}
+													]
+												}
+											},
+											{
+												"name": "SpERFileImportLog_Start",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpERFileImportLog]",
+													"storedProcedureParameters": {
+														"DataDate": {
+															"value": {
+																"value": "@item().DataDate",
+																"type": "Expression"
+															},
+															"type": "DateTime"
+														},
+														"FileID": {
+															"value": {
+																"value": "@item().FileID",
+																"type": "Expression"
+															},
+															"type": "Int32"
+														},
+														"flgStartStop": {
+															"value": "1",
+															"type": "Byte"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "Dev_DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "SpERFileImportLog_End",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "IfFileFound",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpERFileImportLog]",
+													"storedProcedureParameters": {
+														"DataDate": {
+															"value": {
+																"value": "@item().DataDate",
+																"type": "Expression"
+															},
+															"type": "DateTime"
+														},
+														"FileID": {
+															"value": {
+																"value": "@item().FileID",
+																"type": "Expression"
+															},
+															"type": "Int32"
+														},
+														"flgStartStop": {
+															"value": "2",
+															"type": "Byte"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "Dev_DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {},
+					"cancelAfter": {}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
@@ -33597,587 +35246,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2021-02-17T07:39:00Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PnGExternalDataCopy')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy data1",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"maxRowsPerFile": 1000000,
-									"fileNamePrefix": "DBR",
-									"quoteAllText": true,
-									"fileExtension": ".csv"
-								}
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "tmpDataForrakesh_table",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "tmpDataForrakesh_File",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "PnGExternalData"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Productmasterprocessing')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spDataLoadRawProductMaster",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataLoadRawProductMaster]"
-						},
-						"linkedServiceName": {
-							"referenceName": "PnGDataFoundation",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "producthierarchycopy",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "spDataLoadRawProductMaster",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE tmpTransferProductHierarchy",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "LEHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LEHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "LENodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LENodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "LENodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LENodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "LE",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "LE",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CatHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "CatHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CatNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "CatNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CatNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "CatNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Category",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Category",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "BrandHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrandHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BrandNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrandNodeID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BrandNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BrandNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Brand",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Brand",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "BFHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BFHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BFNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BFNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BFNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BFNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "BF",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "BF",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "BFCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "BFCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SBFHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SBFHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SBFNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SBFNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SBFNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SBFNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SBFCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "SBFCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SBF",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "SBF",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SKUHierId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SKUNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SKUNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SKUCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "SKUCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SKU",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "SKU",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "MRP",
-											"type": "Decimal",
-											"physicalType": "decimal"
-										},
-										"sink": {
-											"name": "MRP",
-											"type": "Decimal",
-											"physicalType": "decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "PcsInBox",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "PcsInBox",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "RLP",
-											"type": "Decimal",
-											"physicalType": "decimal"
-										},
-										"sink": {
-											"name": "RLP",
-											"type": "Decimal",
-											"physicalType": "decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "DLP",
-											"type": "Decimal",
-											"physicalType": "decimal"
-										},
-										"sink": {
-											"name": "DLP",
-											"type": "Decimal",
-											"physicalType": "decimal"
-										}
-									},
-									{
-										"source": {
-											"name": "SAPUPC",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SAPUPC",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ProdHierarchy_DF",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ProdHierarchy_TAS",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "spTransferProductMaster",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "producthierarchycopy",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTransferProductMaster]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-08-24T12:52:49Z"
 			},
 			"dependsOn": []
 		}
