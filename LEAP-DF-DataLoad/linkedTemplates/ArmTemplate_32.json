@@ -3112,36 +3112,8 @@
 						}
 					},
 					{
-						"name": "AS_CubeProcess_PCode_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_ResumeandScale_S8",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"flgcalled": 1,
-								"TypeID": 4,
-								"processdate": {
-									"value": "@utcnow()",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "AS_ResumeandScale_S8",
-						"type": "ExecutePipeline",
+						"name": "Until1",
+						"type": "Until",
 						"dependsOn": [
 							{
 								"activity": "spPopulateFactFocusBrandData_PCode",
@@ -3152,18 +3124,242 @@
 						],
 						"userProperties": [],
 						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_ResumeandScale_S8",
-								"type": "PipelineReference"
+							"expression": {
+								"value": "@bool(variables('flgCanProcessStart'))",
+								"type": "Expression"
 							},
-							"waitOnCompletion": true,
-							"parameters": {}
+							"activities": [
+								{
+									"name": "SpGetAstixCubeProcessStatus",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetAstixCubeProcessStatus]",
+											"storedProcedureParameters": {
+												"TypeID": {
+													"type": "Int32",
+													"value": "4"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "SpGetAstixCubeProcessStatus",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(activity('SpGetAstixCubeProcessStatus').output.firstRow.cubereadytoprocess,1 )",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "AS_CubeProcess_PCode_Sync_Fact",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "AS_ResumeandScale_S8",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"flgcalled": 1,
+														"TypeID": 4,
+														"processdate": {
+															"value": "@utcnow()",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "AS_ResumeandScale_S8",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_Start",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_ResumeandScale_S8",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {}
+												}
+											},
+											{
+												"name": "flgCanProcessStart",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_End",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgCanProcessStart",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_Start",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "0",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "4",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_End",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "AS_CubeProcess_PCode_Sync_Fact",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "4",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [
+										{
+											"activity": "If Condition1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 300
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
 						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {},
 					"cancelAfter": {}
+				},
+				"variables": {
+					"flgCanProcessStart": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
