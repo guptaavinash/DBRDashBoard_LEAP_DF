@@ -13,6 +13,1924 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyStaging-To-DB-CCCR-V2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "filenamecloud1",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetFilenameList]",
+								"storedProcedureParameters": {
+									"CloudInstance": {
+										"type": "Byte",
+										"value": "1"
+									},
+									"DFSetID": {
+										"type": "Int32",
+										"value": "10"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "CCCR_Cloud1",
+						"description": "Copy a file from the source store to the destination store.",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "SpCycFileSetEntry_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"additionalColumns": [
+									{
+										"name": "Filename",
+										"value": {
+											"value": "@activity('filenamecloud1').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "LastModifiedDatetime",
+										"value": {
+											"value": "@addminutes(utcnow(),330)",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "FileSetID",
+										"value": {
+											"value": "@activity('SpCycFileSetEntry_Cloud1').output.firstRow.CycFileID",
+											"type": "Expression"
+										}
+									}
+								],
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFileName": {
+										"value": "@activity('filenamecloud1').output.firstRow.name",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								},
+								"recursive": false
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"preCopyScript": {
+									"value": "TRUNCATE TABLE @{activity('filenamecloud1').output.firstRow.temptablename}",
+									"type": "Expression"
+								},
+								"allowPolyBase": true,
+								"polyBaseSettings": {
+									"rejectValue": 0,
+									"rejectType": "value",
+									"useTypeDefault": true
+								},
+								"disableMetricsCollection": false
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "DFPolybaseStagingStorageLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"dataIntegrationUnits": 2,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "branch_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "branch_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "branch_location",
+											"type": "String"
+										},
+										"sink": {
+											"name": "branch_location",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "dse_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "dse_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "dse_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "dse_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "date",
+											"type": "String"
+										},
+										"sink": {
+											"name": "date",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "route_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "route_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "retailer_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "retailer_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "retailer_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "retailer_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "contact_number_1",
+											"type": "String"
+										},
+										"sink": {
+											"name": "contact_number_1",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "contact_number_2",
+											"type": "String"
+										},
+										"sink": {
+											"name": "contact_number_2",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "channel_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "channel_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "sub_channel_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "sub_channel_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "start_time",
+											"type": "String"
+										},
+										"sink": {
+											"name": "start_time",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "end_time",
+											"type": "String"
+										},
+										"sink": {
+											"name": "end_time",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "intime",
+											"type": "String"
+										},
+										"sink": {
+											"name": "intime",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "order_value",
+											"type": "String"
+										},
+										"sink": {
+											"name": "order_value",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "productivity",
+											"type": "String"
+										},
+										"sink": {
+											"name": "productivity",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "reason",
+											"type": "String"
+										},
+										"sink": {
+											"name": "reason",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_latitude",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_latitude",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_longitude",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_longitude",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "deviation_in_meter",
+											"type": "String"
+										},
+										"sink": {
+											"name": "deviation_in_meter",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "deviation",
+											"type": "String"
+										},
+										"sink": {
+											"name": "deviation",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "reason_for_deviation",
+											"type": "String"
+										},
+										"sink": {
+											"name": "reason_for_deviation",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "on_route",
+											"type": "String"
+										},
+										"sink": {
+											"name": "on_route",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "remarks",
+											"type": "String"
+										},
+										"sink": {
+											"name": "remarks",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastModifiedDatetime",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LastModifiedDatetime",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Filename",
+											"type": "String"
+										},
+										"sink": {
+											"name": "Filename",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "distance_travelled",
+											"type": "String"
+										},
+										"sink": {
+											"name": "distance_travelled",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_p1m_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_p1m_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_p3m_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_p3m_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_fb_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_fb_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "FileSetID",
+											"type": "String"
+										},
+										"sink": {
+											"name": "FileSetID"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "LeapCSV_Staging_V2_Cloud1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_Destination_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"tablename": {
+										"value": "@activity('filenamecloud1').output.firstRow.temptablename",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "filenamecloud2",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetFilenameList]",
+								"storedProcedureParameters": {
+									"CloudInstance": {
+										"type": "Byte",
+										"value": "2"
+									},
+									"DFSetID": {
+										"type": "Int32",
+										"value": "10"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "CCCR_Cloud2",
+						"description": "Copy a file from the source store to the destination store.",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "SpCycFileSetEntry_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"additionalColumns": [
+									{
+										"name": "Filename",
+										"value": {
+											"value": "@activity('filenamecloud2').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "LastModifiedDatetime",
+										"value": {
+											"value": "@addminutes(utcnow(),330)",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "FileSetID",
+										"value": {
+											"value": "@activity('SpCycFileSetEntry_Cloud2').output.firstRow.CycFileID",
+											"type": "Expression"
+										}
+									}
+								],
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFileName": {
+										"value": "@activity('filenamecloud2').output.firstRow.name",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								},
+								"recursive": false
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"preCopyScript": {
+									"value": "TRUNCATE TABLE @{activity('filenamecloud2').output.firstRow.temptablename}",
+									"type": "Expression"
+								},
+								"allowPolyBase": true,
+								"polyBaseSettings": {
+									"rejectValue": 0,
+									"rejectType": "value",
+									"useTypeDefault": true
+								},
+								"disableMetricsCollection": false
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "DFPolybaseStagingStorageLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"dataIntegrationUnits": 2,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "branch_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "branch_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "branch_location",
+											"type": "String"
+										},
+										"sink": {
+											"name": "branch_location",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "dse_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "dse_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "dse_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "dse_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "date",
+											"type": "String"
+										},
+										"sink": {
+											"name": "date",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "route_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "route_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "retailer_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "retailer_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "retailer_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "retailer_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "contact_number_1",
+											"type": "String"
+										},
+										"sink": {
+											"name": "contact_number_1",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "contact_number_2",
+											"type": "String"
+										},
+										"sink": {
+											"name": "contact_number_2",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "channel_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "channel_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "sub_channel_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "sub_channel_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "start_time",
+											"type": "String"
+										},
+										"sink": {
+											"name": "start_time",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "end_time",
+											"type": "String"
+										},
+										"sink": {
+											"name": "end_time",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "intime",
+											"type": "String"
+										},
+										"sink": {
+											"name": "intime",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "order_value",
+											"type": "String"
+										},
+										"sink": {
+											"name": "order_value",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "productivity",
+											"type": "String"
+										},
+										"sink": {
+											"name": "productivity",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "reason",
+											"type": "String"
+										},
+										"sink": {
+											"name": "reason",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_latitude",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_latitude",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_longitude",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_longitude",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "deviation_in_meter",
+											"type": "String"
+										},
+										"sink": {
+											"name": "deviation_in_meter",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "deviation",
+											"type": "String"
+										},
+										"sink": {
+											"name": "deviation",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "reason_for_deviation",
+											"type": "String"
+										},
+										"sink": {
+											"name": "reason_for_deviation",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "on_route",
+											"type": "String"
+										},
+										"sink": {
+											"name": "on_route",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "remarks",
+											"type": "String"
+										},
+										"sink": {
+											"name": "remarks",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastModifiedDatetime",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LastModifiedDatetime",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Filename",
+											"type": "String"
+										},
+										"sink": {
+											"name": "Filename",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "distance_travelled",
+											"type": "String"
+										},
+										"sink": {
+											"name": "distance_travelled",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_p1m_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_p1m_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_p3m_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_p3m_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_fb_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_fb_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "FileSetID",
+											"type": "String"
+										},
+										"sink": {
+											"name": "FileSetID"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "LeapCSV_Staging_V2_Cloud2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_Destination_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"tablename": {
+										"value": "@activity('filenamecloud2').output.firstRow.temptablename",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "filenamecloud3",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetFilenameList]",
+								"storedProcedureParameters": {
+									"CloudInstance": {
+										"type": "Byte",
+										"value": "3"
+									},
+									"DFSetID": {
+										"type": "Int32",
+										"value": "10"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "CCCR_Cloud3",
+						"description": "Copy a file from the source store to the destination store.",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "SpCycFileSetEntry_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"additionalColumns": [
+									{
+										"name": "Filename",
+										"value": {
+											"value": "@activity('filenamecloud3').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "LastModifiedDatetime",
+										"value": {
+											"value": "@addminutes(utcnow(),330)",
+											"type": "Expression"
+										}
+									},
+									{
+										"name": "FileSetID",
+										"value": {
+											"value": "@activity('SpCycFileSetEntry_Cloud3').output.firstRow.CycFileID",
+											"type": "Expression"
+										}
+									}
+								],
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFileName": {
+										"value": "@activity('filenamecloud3').output.firstRow.name",
+										"type": "Expression"
+									},
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								},
+								"recursive": false
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"preCopyScript": {
+									"value": "TRUNCATE TABLE @{activity('filenamecloud3').output.firstRow.temptablename}",
+									"type": "Expression"
+								},
+								"allowPolyBase": true,
+								"polyBaseSettings": {
+									"rejectValue": 0,
+									"rejectType": "value",
+									"useTypeDefault": true
+								},
+								"disableMetricsCollection": false
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "DFPolybaseStagingStorageLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"dataIntegrationUnits": 2,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "branch_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "branch_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "branch_location",
+											"type": "String"
+										},
+										"sink": {
+											"name": "branch_location",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "dse_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "dse_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "dse_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "dse_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "date",
+											"type": "String"
+										},
+										"sink": {
+											"name": "date",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "route_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "route_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "retailer_code",
+											"type": "String"
+										},
+										"sink": {
+											"name": "retailer_code",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "retailer_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "retailer_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "contact_number_1",
+											"type": "String"
+										},
+										"sink": {
+											"name": "contact_number_1",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "contact_number_2",
+											"type": "String"
+										},
+										"sink": {
+											"name": "contact_number_2",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "channel_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "channel_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "sub_channel_name",
+											"type": "String"
+										},
+										"sink": {
+											"name": "sub_channel_name",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "start_time",
+											"type": "String"
+										},
+										"sink": {
+											"name": "start_time",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "end_time",
+											"type": "String"
+										},
+										"sink": {
+											"name": "end_time",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "intime",
+											"type": "String"
+										},
+										"sink": {
+											"name": "intime",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "order_value",
+											"type": "String"
+										},
+										"sink": {
+											"name": "order_value",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "productivity",
+											"type": "String"
+										},
+										"sink": {
+											"name": "productivity",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "reason",
+											"type": "String"
+										},
+										"sink": {
+											"name": "reason",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_latitude",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_latitude",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_longitude",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_longitude",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "deviation_in_meter",
+											"type": "String"
+										},
+										"sink": {
+											"name": "deviation_in_meter",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "deviation",
+											"type": "String"
+										},
+										"sink": {
+											"name": "deviation",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "reason_for_deviation",
+											"type": "String"
+										},
+										"sink": {
+											"name": "reason_for_deviation",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "on_route",
+											"type": "String"
+										},
+										"sink": {
+											"name": "on_route",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "remarks",
+											"type": "String"
+										},
+										"sink": {
+											"name": "remarks",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastModifiedDatetime",
+											"type": "String"
+										},
+										"sink": {
+											"name": "LastModifiedDatetime",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Filename",
+											"type": "String"
+										},
+										"sink": {
+											"name": "Filename",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "distance_travelled",
+											"type": "String"
+										},
+										"sink": {
+											"name": "distance_travelled",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_p1m_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_p1m_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_p3m_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_p3m_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "visit_fb_ach",
+											"type": "String"
+										},
+										"sink": {
+											"name": "visit_fb_ach",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "FileSetID",
+											"type": "String"
+										},
+										"sink": {
+											"name": "FileSetID"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "LeapCSV_Staging_V2_Cloud3",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_Destination_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"tablename": {
+										"value": "@activity('filenamecloud3').output.firstRow.temptablename",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "spDataLoadRawLEAPTAS_CCCR_Cloud1",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "SpCycFileSetUpdate_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spDataLoadRawLEAPTAS_CCCR_Cloud1]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "spDataLoadRawLEAPTAS_CCCR_Cloud2",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "SpCycFileSetUpdate_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spDataLoadRawLEAPTAS_CCCR_Cloud2]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "spDataLoadRawLEAPTAS_CCCR_Cloud3",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "SpCycFileSetUpdate_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spDataLoadRawLEAPTAS_CCCR_Cloud3]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpCycFileSetEntry_Cloud1",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "filenamecloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycFileEntry]",
+								"storedProcedureParameters": {
+									"CycleID": {
+										"type": "Int64",
+										"value": {
+											"value": "@pipeline().parameters.CycleID",
+											"type": "Expression"
+										}
+									},
+									"DataDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MMM-dd')",
+											"type": "Expression"
+										}
+									},
+									"FileID": {
+										"type": "Int32",
+										"value": {
+											"value": "@activity('filenamecloud1').output.firstRow.FileID",
+											"type": "Expression"
+										}
+									},
+									"FileName": {
+										"type": "String",
+										"value": {
+											"value": "@activity('filenamecloud1').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									"flgProcessType": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpCycFileSetUpdate_Cloud1",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CCCR_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycFileEntry]",
+								"storedProcedureParameters": {
+									"CycleID": {
+										"type": "Int64",
+										"value": {
+											"value": "@pipeline().parameters.CycleID",
+											"type": "Expression"
+										}
+									},
+									"DataDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MMM-dd')",
+											"type": "Expression"
+										}
+									},
+									"FileID": {
+										"type": "Int32",
+										"value": {
+											"value": "@activity('filenamecloud1').output.firstRow.FileID",
+											"type": "Expression"
+										}
+									},
+									"FileName": {
+										"type": "String",
+										"value": {
+											"value": "@activity('filenamecloud1').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									"flgProcessType": {
+										"type": "Byte",
+										"value": "2"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpCycFileSetEntry_Cloud2",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "filenamecloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycFileEntry]",
+								"storedProcedureParameters": {
+									"CycleID": {
+										"type": "Int64",
+										"value": {
+											"value": "@pipeline().parameters.CycleID",
+											"type": "Expression"
+										}
+									},
+									"DataDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MMM-dd')",
+											"type": "Expression"
+										}
+									},
+									"FileID": {
+										"type": "Int32",
+										"value": {
+											"value": "@activity('filenamecloud2').output.firstRow.FileID",
+											"type": "Expression"
+										}
+									},
+									"FileName": {
+										"type": "String",
+										"value": {
+											"value": "@activity('filenamecloud2').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									"flgProcessType": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpCycFileSetUpdate_Cloud2",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CCCR_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycFileEntry]",
+								"storedProcedureParameters": {
+									"CycleID": {
+										"type": "Int64",
+										"value": {
+											"value": "@pipeline().parameters.CycleID",
+											"type": "Expression"
+										}
+									},
+									"DataDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MMM-dd')",
+											"type": "Expression"
+										}
+									},
+									"FileID": {
+										"type": "Int32",
+										"value": {
+											"value": "@activity('filenamecloud2').output.firstRow.FileID",
+											"type": "Expression"
+										}
+									},
+									"FileName": {
+										"type": "String",
+										"value": {
+											"value": "@activity('filenamecloud2').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									"flgProcessType": {
+										"type": "Byte",
+										"value": "2"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpCycFileSetEntry_Cloud3",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "filenamecloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycFileEntry]",
+								"storedProcedureParameters": {
+									"CycleID": {
+										"type": "Int64",
+										"value": {
+											"value": "@pipeline().parameters.CycleID",
+											"type": "Expression"
+										}
+									},
+									"DataDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MMM-dd')",
+											"type": "Expression"
+										}
+									},
+									"FileID": {
+										"type": "Int32",
+										"value": {
+											"value": "@activity('filenamecloud3').output.firstRow.FileID",
+											"type": "Expression"
+										}
+									},
+									"FileName": {
+										"type": "String",
+										"value": {
+											"value": "@activity('filenamecloud3').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									"flgProcessType": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "SpCycFileSetUpdate_Cloud3",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "CCCR_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycFileEntry]",
+								"storedProcedureParameters": {
+									"CycleID": {
+										"type": "Int64",
+										"value": {
+											"value": "@pipeline().parameters.CycleID",
+											"type": "Expression"
+										}
+									},
+									"DataDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MMM-dd')",
+											"type": "Expression"
+										}
+									},
+									"FileID": {
+										"type": "Int32",
+										"value": {
+											"value": "@activity('filenamecloud3').output.firstRow.FileID",
+											"type": "Expression"
+										}
+									},
+									"FileName": {
+										"type": "String",
+										"value": {
+											"value": "@activity('filenamecloud3').output.firstRow.name",
+											"type": "Expression"
+										}
+									},
+									"flgProcessType": {
+										"type": "Byte",
+										"value": "2"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"CycleID": {
+						"type": "string"
+					},
+					"DataProcessDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyStoreData')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -935,8 +2853,7 @@
 				],
 				"concurrency": 1,
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"Container": {
@@ -1832,8 +3749,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
@@ -1915,8 +3831,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"Directory": {
@@ -2475,8 +4390,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "Leap Data Pipeline"
@@ -3666,8 +5580,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "Other Pipelines"
@@ -4109,8 +6022,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
@@ -4989,8 +6901,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "DF-To-TAS"
@@ -5421,8 +7332,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "DF-To-TAS"
@@ -6156,8 +8066,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
@@ -6261,8 +8170,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
@@ -6402,8 +8310,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"Containername": {
@@ -6461,8 +8368,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6580,8 +8486,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6630,8 +8535,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "Leap Data Pipeline"
@@ -6679,8 +8583,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6737,8 +8640,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6795,8 +8697,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6849,8 +8750,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6903,8 +8803,7 @@
 					}
 				],
 				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
+					"elapsedTimeMetric": {}
 				},
 				"parameters": {
 					"FileName": {
@@ -6913,345 +8812,6 @@
 				},
 				"folder": {
 					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FileGeneration_OneTime')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Lookup All Distributor",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "DataDatetime",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDbrList_Onetime]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_DF_NC_Sales_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach Distributor",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Lookup All Distributor",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Lookup All Distributor').output.value",
-								"type": "Expression"
-							},
-							"isSequential": false,
-							"activities": [
-								{
-									"name": "Copy data",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 1,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderQuery": {
-												"value": "SELECT * FROM tmpDataForPrasoon WHERE Distributor_Name='@{item().DistributorName}'",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"mappings": [
-												{
-													"source": {
-														"name": "Market",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Market",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Distributor_Name",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Distributor_Name",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Branch_ID",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Branch_ID",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Distributor_Branch",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Distributor_Branch",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Store_Code",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Store_Code",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Store_Name",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Store_Name",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Seller_ID",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Seller_ID",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Master_Latitude",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Master_Latitude",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Master_Longitude",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Master_Longitude",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Sellout_P3M",
-														"type": "Decimal",
-														"physicalType": "decimal",
-														"scale": 2,
-														"precision": 38
-													},
-													"sink": {
-														"name": "Sellout_P3M",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Currency",
-														"type": "String",
-														"physicalType": "varchar"
-													},
-													"sink": {
-														"name": "Currency",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Visiting_Date",
-														"type": "DateTime",
-														"physicalType": "date"
-													},
-													"sink": {
-														"name": "Visiting_Date",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Visit_Latitude",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Visit_Latitude",
-														"type": "String",
-														"physicalType": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Visit_Longitude",
-														"type": "String",
-														"physicalType": "nvarchar"
-													},
-													"sink": {
-														"name": "Visit_Longitude",
-														"type": "String",
-														"physicalType": "String"
-													}
-												}
-											],
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "DS_tmpAPIExtractDayPSRRawBranch_table",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapAPIFileDataset",
-											"type": "DatasetReference",
-											"parameters": {
-												"directory": "distributordata",
-												"FolderPath": {
-													"value": "@{concat(formatDateTime(variables('TimeToday'), 'yyyy'), '/', formatDateTime(variables('TimeToday'), 'MM'), '/', formatDateTime(variables('TimeToday'), 'dd'))}",
-													"type": "Expression"
-												},
-												"filename": {
-													"value": "@{concat('AMA Distributor Coverage Compliance GPS data','_',\nformatDateTime(variables('TimeToday'), 'dd'),formatDateTime(variables('TimeToday'), 'MM'),formatDateTime(variables('TimeToday'), 'yyyy'),'_',item().DistributorName,'.csv')}",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					},
-					{
-						"name": "DataDatetime",
-						"type": "SetVariable",
-						"dependsOn": [],
-						"policy": {
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "TimeToday",
-							"value": {
-								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),1,'Day'),'yyyy-MM-dd')",
-								"type": "Expression"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {},
-					"cancelAfter": {}
-				},
-				"variables": {
-					"TimeToday": {
-						"type": "String"
-					},
-					"DataDeleteDate": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "API"
 				},
 				"annotations": []
 			},
