@@ -13,6 +13,366 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyLeap_Staging-To-DB_WithDPSR_TOCheck')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Copy file data from Staging to DB",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "SpFileEntry",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "spGetFileID",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpFileEntry]",
+										"storedProcedureParameters": {
+											"Filename": {
+												"value": {
+													"value": "@item().name",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"FileType": {
+												"value": "1",
+												"type": "Byte"
+											},
+											"LastModifiedDatetime": {
+												"value": {
+													"value": "@activity('GetFileList').output.lastModified",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											},
+											"FileID": {
+												"value": {
+													"value": "@activity('spGetFileID').output.firstRow.FileID",
+													"type": "Expression"
+												},
+												"type": "Int16"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "IFFileFound",
+									"type": "Switch",
+									"dependsOn": [
+										{
+											"activity": "SpFileEntry",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"on": {
+											"value": "@string(activity('spGetFileID').output.firstRow.FileID)",
+											"type": "Expression"
+										},
+										"cases": [
+											{
+												"value": "1",
+												"activities": [
+													{
+														"name": "BSBF_Cloud1",
+														"description": "Copy a file from the source store to the destination store.",
+														"type": "Copy",
+														"dependsOn": [],
+														"policy": {
+															"timeout": "7.00:00:00",
+															"retry": 0,
+															"retryIntervalInSeconds": 30,
+															"secureOutput": false,
+															"secureInput": false
+														},
+														"userProperties": [],
+														"typeProperties": {
+															"source": {
+																"type": "DelimitedTextSource",
+																"additionalColumns": [
+																	{
+																		"name": "Filename",
+																		"value": {
+																			"value": "@item().name",
+																			"type": "Expression"
+																		}
+																	},
+																	{
+																		"name": "LastModifiedDatetime",
+																		"value": {
+																			"value": "@activity('GetFileList').output.lastModified",
+																			"type": "Expression"
+																		}
+																	}
+																],
+																"storeSettings": {
+																	"type": "AzureBlobStorageReadSettings",
+																	"recursive": true,
+																	"wildcardFileName": "BSBF_cloud01_*",
+																	"enablePartitionDiscovery": false
+																},
+																"formatSettings": {
+																	"type": "DelimitedTextReadSettings"
+																},
+																"recursive": false
+															},
+															"sink": {
+																"type": "SqlDWSink",
+																"allowPolyBase": true,
+																"polyBaseSettings": {
+																	"rejectValue": 0,
+																	"rejectType": "value",
+																	"useTypeDefault": true
+																}
+															},
+															"enableStaging": true,
+															"stagingSettings": {
+																"linkedServiceName": {
+																	"referenceName": "DFPolybaseStagingStorageLink",
+																	"type": "LinkedServiceReference"
+																},
+																"path": "polybasestaging"
+															},
+															"dataIntegrationUnits": 2,
+															"translator": {
+																"type": "TabularTranslator",
+																"mappings": [
+																	{
+																		"source": {
+																			"name": "branchcode",
+																			"type": "String"
+																		},
+																		"sink": {
+																			"name": "branchcode",
+																			"type": "String"
+																		}
+																	},
+																	{
+																		"source": {
+																			"name": "subbfname",
+																			"type": "String"
+																		},
+																		"sink": {
+																			"name": "subbfname",
+																			"type": "String"
+																		}
+																	},
+																	{
+																		"source": {
+																			"name": "status",
+																			"type": "String"
+																		},
+																		"sink": {
+																			"name": "status",
+																			"type": "String"
+																		}
+																	},
+																	{
+																		"source": {
+																			"name": "Filename",
+																			"type": "String"
+																		},
+																		"sink": {
+																			"name": "Filename",
+																			"type": "String"
+																		}
+																	},
+																	{
+																		"source": {
+																			"name": "LastModifiedDatetime",
+																			"type": "String"
+																		},
+																		"sink": {
+																			"name": "LastModifiedDatetime",
+																			"type": "String"
+																		}
+																	}
+																]
+															}
+														},
+														"inputs": [
+															{
+																"referenceName": "LeapCSV_Staging",
+																"type": "DatasetReference",
+																"parameters": {}
+															}
+														],
+														"outputs": [
+															{
+																"referenceName": "DS_BSBF_table",
+																"type": "DatasetReference",
+																"parameters": {}
+															}
+														]
+													}
+												]
+											}
+										]
+									}
+								},
+								{
+									"name": "spGetFileID",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetFileID]",
+											"storedProcedureParameters": {
+												"FileName": {
+													"type": "String",
+													"value": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DS_ATTN_table",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Location": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Location": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-09T03:23:55Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyNCS_Staging-To-DB')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -7149,220 +7509,6 @@
 						"type": "string"
 					},
 					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-05-29T19:10:03Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3_Onefile_V2')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Cloud3FilesMetaData",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "S3LeapDataSet_Cloud3_Folder",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"fieldList": [
-								"childItems",
-								"itemName",
-								"lastModified"
-							],
-							"storeSettings": {
-								"type": "AmazonS3ReadSettings",
-								"recursive": true,
-								"modifiedDatetimeStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"modifiedDatetimeEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								}
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "Cloud3FilesFilter",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "Cloud3FilesMetaData",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud3FilesMetaData').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@and(equals(item().type, 'File'),equals(item().name,pipeline().parameters.filename))",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "ForEachCloud3FolderFiles",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Cloud3FilesFilter",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Cloud3FilesFilter').output.value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "LeapCSV_Cloud3_Staging",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 1,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "BinarySource",
-											"storeSettings": {
-												"type": "AmazonS3ReadSettings",
-												"recursive": true,
-												"modifiedDatetimeStart": {
-													"value": "@pipeline().parameters.windowStart",
-													"type": "Expression"
-												},
-												"modifiedDatetimeEnd": {
-													"value": "@pipeline().parameters.windowEnd",
-													"type": "Expression"
-												}
-											},
-											"formatSettings": {
-												"type": "BinaryReadSettings"
-											}
-										},
-										"sink": {
-											"type": "BinarySink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"preserve": [
-											"Attributes"
-										],
-										"validateDataConsistency": false,
-										"dataIntegrationUnits": 2
-									},
-									"inputs": [
-										{
-											"referenceName": "S3LeapDataSet_Cloud3_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "LeapStorageSourceDataset_V2_Cloud3",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									]
-								},
-								{
-									"name": "DeleteFiles_Cloud3",
-									"type": "Delete",
-									"dependsOn": [
-										{
-											"activity": "LeapCSV_Cloud3_Staging",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 1,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"dataset": {
-											"referenceName": "S3LeapDataSet_Cloud3_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										},
-										"enableLogging": false,
-										"storeSettings": {
-											"type": "AmazonS3ReadSettings",
-											"recursive": true
-										}
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					},
-					"filename": {
 						"type": "string"
 					}
 				},
