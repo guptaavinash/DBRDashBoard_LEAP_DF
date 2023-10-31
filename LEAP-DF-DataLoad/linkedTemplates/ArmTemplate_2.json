@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"RTDC_Legacy_secretAccessKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'secretAccessKey' of 'RTDC_Legacy'"
+		},
 		"TASDatabase_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'TASDatabase'"
@@ -23,6 +27,10 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'dfdatafoundation_Hawkeye'"
 		},
+		"RTDC_Legacy_properties_typeProperties_accessKeyId": {
+			"type": "string",
+			"defaultValue": "asfvsadsddsvdsgsdgdgdfbdfbdhfyjtyj"
+		},
 		"dfdatafoundationLink_sasUri": {
 			"type": "secureString",
 			"metadata": "Secure string for 'sasUri' of 'dfdatafoundationLink'"
@@ -32,6 +40,25 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/RTDC_Legacy')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AmazonS3",
+				"typeProperties": {
+					"serviceUrl": "https://s3.amazonaws.com",
+					"accessKeyId": "[parameters('RTDC_Legacy_properties_typeProperties_accessKeyId')]",
+					"secretAccessKey": {
+						"type": "SecureString",
+						"value": "[parameters('RTDC_Legacy_secretAccessKey')]"
+					},
+					"authenticationType": "AccessKey"
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/TASDatabase')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
@@ -115,91 +142,6 @@
 			"properties": {
 				"type": "SelfHosted",
 				"typeProperties": {}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/WaitTillPipeline')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Until TimeValue",
-						"type": "Until",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('flgTimeOK'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "If Condition3",
-									"type": "IfCondition",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),pipeline().parameters.TimeValue)",
-											"type": "Expression"
-										},
-										"ifFalseActivities": [
-											{
-												"name": "Wait 5 min",
-												"type": "Wait",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"waitTimeInSeconds": 300
-												}
-											}
-										],
-										"ifTrueActivities": [
-											{
-												"name": "Set variable1",
-												"type": "SetVariable",
-												"dependsOn": [],
-												"policy": {
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "flgCOHTimeOK",
-													"value": {
-														"value": "@bool(1)",
-														"type": "Expression"
-													}
-												}
-											}
-										]
-									}
-								}
-							],
-							"timeout": "0.12:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"TimeValue": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"flgTimeOK": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
-				},
-				"folder": {
-					"name": "Other Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},
