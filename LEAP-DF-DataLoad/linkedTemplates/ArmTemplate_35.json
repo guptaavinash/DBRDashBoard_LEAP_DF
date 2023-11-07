@@ -53,6 +53,176 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/MiddleDFProcessing_Step1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpCycleStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
+								"storedProcedureParameters": {
+									"flgInOut": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Cloud1Processing_Step1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Cloud1Processing_Step1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataProcessDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Cloud2Processing_Step1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Cloud2Processing_Step1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataProcessDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Cloud3Processing_Step1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Cloud3Processing_Step1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataProcessDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"flgCloud1LoadingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud2LoadingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud3LoadingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud1ProcessingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud2ProcessingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud3ProcessingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_Step1')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -138,7 +308,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing_Step1')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2')]",
