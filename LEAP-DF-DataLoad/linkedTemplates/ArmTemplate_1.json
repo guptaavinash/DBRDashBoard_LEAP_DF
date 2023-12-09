@@ -92,15 +92,6 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'PolybaseLink'"
 		},
-		"PremiumDatafoundationconnection_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'PremiumDatafoundationconnection'",
-			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=pgdatafoundation.database.windows.net;Initial Catalog=DataFoundation"
-		},
-		"PremiumDatafoundationconnection_servicePrincipalKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'servicePrincipalKey' of 'PremiumDatafoundationconnection'"
-		},
 		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
 			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
@@ -160,20 +151,153 @@
 		"PnGAzureKeyVault_properties_typeProperties_baseUrl": {
 			"type": "string",
 			"defaultValue": "https://PnGDFAzureKeyVault.vault.azure.net/"
-		},
-		"PremiumDatafoundationconnection_properties_typeProperties_servicePrincipalId": {
-			"type": "string",
-			"defaultValue": "4be52bb2-b61f-46c8-b09a-eefdfd6082a1"
-		},
-		"PremiumDatafoundationconnection_properties_typeProperties_tenant": {
-			"type": "string",
-			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Testpipeline1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "TimeToday",
+						"type": "SetVariable",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "TimeToday",
+							"value": {
+								"value": "@formatDateTime(subtractFromTime(convertTimeZone(utcnow(),'UTC','India Standard Time'),1,'Day'),'yyyy-MM-dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "FolderDate",
+						"type": "SetVariable",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "TimeToday",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "FolderDate",
+							"value": {
+								"value": "@concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until 8_30",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgTimeOK'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "If Condition3",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),'11:12:00')\n",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Wait 5 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 300
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "Set variable1",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgTimeOK",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"TimeToday": {
+						"type": "String"
+					},
+					"FolderDate": {
+						"type": "String"
+					},
+					"flgTimeOK": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"hour": {
+						"type": "Integer",
+						"defaultValue": 0
+					},
+					"minute": {
+						"type": "Integer",
+						"defaultValue": 0
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/WaitTillPipeline')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -533,25 +657,6 @@
 				"type": "AzureBlobStorage",
 				"typeProperties": {
 					"connectionString": "[parameters('PolybaseLink_connectionString')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PremiumDatafoundationconnection')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDW",
-				"typeProperties": {
-					"connectionString": "[parameters('PremiumDatafoundationconnection_connectionString')]",
-					"servicePrincipalId": "[parameters('PremiumDatafoundationconnection_properties_typeProperties_servicePrincipalId')]",
-					"servicePrincipalKey": {
-						"type": "SecureString",
-						"value": "[parameters('PremiumDatafoundationconnection_servicePrincipalKey')]"
-					},
-					"tenant": "[parameters('PremiumDatafoundationconnection_properties_typeProperties_tenant')]"
 				}
 			},
 			"dependsOn": []
