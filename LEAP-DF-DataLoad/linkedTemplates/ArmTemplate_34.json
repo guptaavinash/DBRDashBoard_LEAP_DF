@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container": {
+			"type": "string",
+			"defaultValue": "hawkeye-pwa"
+		},
+		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate": {
+			"type": "string",
+			"defaultValue": "@{formatDateTime(utcNow(),'dd-MMM-yyyy')}"
+		},
 		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
@@ -56,6 +64,49 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/HawkeyeDataImport')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "HawkeyeDataImport",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"Container": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container')]",
+							"ProcessedDataDate": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2023-07-07T12:26:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								1
+							],
+							"hours": [
+								15,
+								16,
+								17,
+								18,
+								19
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_At6')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -2160,6 +2211,27 @@
 								"ScaleVal": "DW100c",
 								"flgcalled": 1
 							}
+						}
+					},
+					{
+						"name": "MorningProcessCompleteCheck",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DCC",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "MorningProcessCompleteCheck",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
 						}
 					}
 				],
@@ -8996,34 +9068,6 @@
 								22
 							]
 						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FocusBrandLoading')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "FocusBrandLoading-LEAP-TO-DF",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-02-28T09:00:00",
-						"timeZone": "India Standard Time"
 					}
 				}
 			},
