@@ -7471,6 +7471,442 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataFocusBrnadProcessing_V2_04Jan2024')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "FocusBrandLoading-LEAP-TO-DF",
+						"type": "ExecutePipeline",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "FocusBrandLoading-LEAP-TO-DF_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "spGetDFParameterDetail",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "spPopulateFactFocusBrandData_PCode",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateFactFocusBrandData_PCode]",
+							"storedProcedureParameters": {
+								"Rptmonthyear": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.RptMonthYear",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Until 9_00",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgCanProcessStart'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "SpGetAstixCubeProcessStatus",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetAstixCubeProcessStatus]",
+											"storedProcedureParameters": {
+												"TypeID": {
+													"type": "Int32",
+													"value": "4"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "SpGetAstixCubeProcessStatus",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(activity('SpGetAstixCubeProcessStatus').output.firstRow.cubereadytoprocess,1 )",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "AS_CubeProcess_PCode_Sync_Fact",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "AS_ResumeandScale_S4",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"flgcalled": 1,
+														"TypeID": 4,
+														"processdate": {
+															"value": "@utcnow()",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "AS_ResumeandScale_S4",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_Start",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_ResumeandScale_S4",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {}
+												}
+											},
+											{
+												"name": "flgCanProcessStart",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_End",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgCanProcessStart",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_Start",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "0",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "4",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_End",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "AS_CubeProcess_PCode_Sync_Fact",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "4",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [
+										{
+											"activity": "If Condition1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 300
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					},
+					{
+						"name": "DWScaleafterProcessing_V2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Until1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DWScaleafterProcessing_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Until 9_00",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "spPopulateFactFocusBrandData_PCode",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgTimeOK'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "If Condition3",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),'09:00:00')",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Wait 5 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 300
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "Set variable1",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgTimeOK",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"flgCanProcessStart": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgTimeOK": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2_Check')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -8622,546 +9058,6 @@
 								"type": "AzureBlobStorageReadSettings",
 								"recursive": true
 							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					},
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"Container": {
-						"type": "string"
-					},
-					"Directory": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily_30May2022')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeapStaging-To-ADLS",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait2",
-								"dependencyConditions": [
-									"Completed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeapStaging-To-ADLS",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Directory": "cntleap",
-								"Folder": {
-									"value": "@concat('/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'), '/')",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DFDataOlapProcess",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DFDataOlapProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataDate": {
-									"value": "@adddays(formatDateTime(pipeline().parameters.DataProcessDate,'dd-MMM-yyyy'),0)",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DW_Scale_200",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Send Success Notification",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_Scale_S2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Scale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "DW200c"
-							}
-						}
-					},
-					{
-						"name": "FocusBrandLoading-LEAP-TO-DF",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FocusBrandLoading-LEAP-TO-DF",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_Resume",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DFDataOlapProcess",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Resume",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Wait1",
-						"type": "Wait",
-						"dependsOn": [
-							{
-								"activity": "AS_Resume",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 300
-						}
-					},
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait_AS_Scaling",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Notification",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Scale_200",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "API All Extract Data Populate",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "DFDataAPIProcess",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateAPIAllExtract]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "APIDataFileGeneration",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "MasterDataForAPI",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "APIDataFileGeneration",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "MasterDataForAPI",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "API All Extract Data Populate",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "MasterDataForAPI",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Success Notification",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "APIDataFileGeneration",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,gaurav@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "API Process Success",
-								"ErrorMessage": "API process and files generated successful"
-							}
-						}
-					},
-					{
-						"name": "DFDataAPIProcess",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Completed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DFDataAPIProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataDate": {
-									"value": "@adddays(formatDateTime(pipeline().parameters.DataProcessDate,'dd-MMM-yyyy'),0)",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "Send Notification1_copy1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification_copy1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DFDataOlapProcess",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification_copy2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_Resume",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "Send Notification_copy3",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Ashwani@Astix.in,Alok@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
-								"Subject": "DataFoundation DataLoading Fails ",
-								"ErrorMessage": "Processing Fails , login to Portal for more deatils."
-							}
-						}
-					},
-					{
-						"name": "AS_Scale_S2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Scale_S2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_Scale_S4",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "Wait1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_Scale_S4",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Wait_AS_Scaling",
-						"type": "Wait",
-						"dependsOn": [
-							{
-								"activity": "AS_Scale_S4",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 300
-						}
-					},
-					{
-						"name": "DeleteFiles_Staging",
-						"type": "Delete",
-						"dependsOn": [
-							{
-								"activity": "CopyLeapStaging-To-ADLS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "LeapStorageSourceDataset",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"enableLogging": false,
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings",
-								"recursive": true
-							}
-						}
-					},
-					{
-						"name": "Wait2",
-						"type": "Wait",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 1
 						}
 					}
 				],
