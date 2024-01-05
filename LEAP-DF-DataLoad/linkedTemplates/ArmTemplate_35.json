@@ -34,32 +34,671 @@
 		"NCSSUBDDataLoadingFromAstixServer_Night_properties_NCSDataTransfer-ASTIX-TO-DF_parameters_ProcessingType": {
 			"type": "int",
 			"defaultValue": 2
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "@{formatDateTime(utcNow(),'dd-MMM-yyyy')}"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container": {
-			"type": "string",
-			"defaultValue": "cntleap"
-		},
-		"LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory": {
-			"type": "string",
-			"defaultValue": "@{concat('/', formatDateTime(trigger().scheduledTime, 'yyyy'), '/', formatDateTime(trigger().scheduledTime, 'MM'), '/', formatDateTime(trigger().scheduledTime, 'dd'), '/')}"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataFocusBrnadProcessing_V2_04Jan2024')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "FocusBrandLoading-LEAP-TO-DF",
+						"type": "ExecutePipeline",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "FocusBrandLoading-LEAP-TO-DF_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "spGetDFParameterDetail",
+						"type": "Lookup",
+						"dependsOn": [
+							{
+								"activity": "FocusBrandLoading-LEAP-TO-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "spPopulateFactFocusBrandData_PCode",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateFactFocusBrandData_PCode]",
+							"storedProcedureParameters": {
+								"Rptmonthyear": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.RptMonthYear",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Until 9_00",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgCanProcessStart'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "SpGetAstixCubeProcessStatus",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetAstixCubeProcessStatus]",
+											"storedProcedureParameters": {
+												"TypeID": {
+													"type": "Int32",
+													"value": "4"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "SpGetAstixCubeProcessStatus",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(activity('SpGetAstixCubeProcessStatus').output.firstRow.cubereadytoprocess,1 )",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "AS_CubeProcess_PCode_Sync_Fact",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "AS_ResumeandScale_S4",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"flgcalled": 1,
+														"TypeID": 4,
+														"processdate": {
+															"value": "@utcnow()",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "AS_ResumeandScale_S4",
+												"type": "ExecutePipeline",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_Start",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_ResumeandScale_S4",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {}
+												}
+											},
+											{
+												"name": "flgCanProcessStart",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_End",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgCanProcessStart",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_Start",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "0",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "4",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_End",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "AS_CubeProcess_PCode_Sync_Fact",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "4",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [
+										{
+											"activity": "If Condition1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 300
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					},
+					{
+						"name": "DWScaleafterProcessing_V2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Until1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DWScaleafterProcessing_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Until 9_00",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "spPopulateFactFocusBrandData_PCode",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgTimeOK'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "If Condition3",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),'09:00:00')",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Wait 5 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 300
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "Set variable1",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgTimeOK",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"flgCanProcessStart": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgTimeOK": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2_Check')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpCycleStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
+								"storedProcedureParameters": {
+									"flgInOut": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "LeapDataProcessing-Cloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "LeapDataLoadingCloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataProcessing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"CloudInstance": "2"
+							}
+						}
+					},
+					{
+						"name": "LeapDataProcessing-Cloud3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "LeapDataLoadingCloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataProcessing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"CloudInstance": "3"
+							}
+						}
+					},
+					{
+						"name": "LeapDataLoadingCloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataLoadingCloud1",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Cloud": 1,
+								"DataDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "LeapDataLoadingCloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataLoadingCloud2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								},
+								"DataDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"Cloud": 2
+							}
+						}
+					},
+					{
+						"name": "LeapDataLoadingCloud3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataLoadingCloud3",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								},
+								"DataDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"Cloud": 3
+							}
+						}
+					},
+					{
+						"name": "LeapDataProcessing-Cloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "LeapDataLoadingCloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "LeapDataProcessing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"CloudInstance": "1"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"Container": {
+						"type": "string"
+					},
+					"Directory": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -7471,86 +8110,6 @@
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FocusBrandLoadingandProccessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataFocusBrnadProcessing_V2",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2023-07-07T05:55:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								46
-							],
-							"hours": [
-								7
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovementDaily')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataMovementDaily",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowStart')]",
-							"windowEnd": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_windowEnd')]",
-							"DataProcessDate": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_DataProcessDate')]",
-							"Container": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Container')]",
-							"Directory": "[parameters('LeapDataMovementDaily_properties_LeapDataMovementDaily_parameters_Directory')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-03-11T07:00:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								5
-							],
-							"hours": [
-								6
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataMovementDaily')]"
-			]
 		}
 	]
 }
