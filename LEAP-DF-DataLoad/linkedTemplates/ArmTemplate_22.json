@@ -2516,74 +2516,48 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "SpOverAllCubeProcessStatus",
-						"type": "Lookup",
+						"name": "Until1",
+						"type": "Until",
 						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpOverAllCubeProcessStatus]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnection",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "If Condition1",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "SpOverAllCubeProcessStatus",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
 						"userProperties": [],
 						"typeProperties": {
 							"expression": {
-								"value": "@equals(int(activity('SpOverAllCubeProcessStatus').output.firstRow.flgDone),1)",
+								"value": "@bool(variables('flgCanProcessStart'))",
 								"type": "Expression"
 							},
-							"ifTrueActivities": [
+							"activities": [
 								{
-									"name": "DW_Resume_Scale_V2",
-									"type": "ExecutePipeline",
+									"name": "SpDAAllProcessStatusGet",
+									"type": "Lookup",
 									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
 									"userProperties": [],
 									"typeProperties": {
-										"pipeline": {
-											"referenceName": "DW_Resume_Scale_V2",
-											"type": "PipelineReference"
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpDAAllProcessStatusGet]",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
 										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"ScaleVal": "DW100c",
-											"flgcalled": 1
+										"dataset": {
+											"referenceName": "DataFoundationConnection",
+											"type": "DatasetReference",
+											"parameters": {}
 										}
 									}
 								},
 								{
-									"name": "AS_ResumeandScale_S4",
-									"type": "ExecutePipeline",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
+									"name": "If Condition1",
+									"type": "IfCondition",
 									"dependsOn": [
 										{
-											"activity": "DW_Resume_Scale_V2",
+											"activity": "SpDAAllProcessStatusGet",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -2591,20 +2565,78 @@
 									],
 									"userProperties": [],
 									"typeProperties": {
-										"pipeline": {
-											"referenceName": "AS_ResumeandScale_S4",
-											"type": "PipelineReference"
+										"expression": {
+											"value": "@equals(int(activity('SpDAAllProcessStatusGet').output.firstRow.flgIsProcessingDone),1)",
+											"type": "Expression"
 										},
-										"waitOnCompletion": true,
-										"parameters": {}
+										"ifFalseActivities": [
+											{
+												"name": "Wait 15 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 900
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "DW_Resume_Scale_V2",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "DW_Resume_Scale_V2",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"ScaleVal": "DW200c",
+														"flgcalled": 1
+													}
+												}
+											},
+											{
+												"name": "AS_ResumeandScale_S4",
+												"type": "ExecutePipeline",
+												"state": "Inactive",
+												"onInactiveMarkAs": "Succeeded",
+												"dependsOn": [
+													{
+														"activity": "DW_Resume_Scale_V2",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_ResumeandScale_S4",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {}
+												}
+											}
+										]
 									}
 								}
-							]
+							],
+							"timeout": "0.12:00:00"
 						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"flgCanProcessStart": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
