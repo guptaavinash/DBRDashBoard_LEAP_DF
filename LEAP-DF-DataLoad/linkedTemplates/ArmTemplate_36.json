@@ -34,28 +34,234 @@
 		"LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_Step": {
 			"type": "string",
 			"defaultValue": "2"
-		},
-		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
-		},
-		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Container": {
-			"type": "string",
-			"defaultValue": "cntleap"
-		},
-		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Directory": {
-			"type": "string",
-			"defaultValue": "@{concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')}"
-		},
-		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Step": {
-			"type": "string",
-			"defaultValue": "1"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Cloud3Processing_Step1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Until Cloud 3 Processing Done",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@or(not(equals(variables('flgFullProcessingPending'), '1')),\nnot(greaterOrEquals(int(variables('MaxNoofCheck')),int(variables('CurrentCountNoofCheck')))))\n",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Set flgFullProcessingPending",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "SpGetCloudFileLoadingStatus_Cloud3",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "flgFullProcessingPending",
+										"value": {
+											"value": "@string(activity('SpGetCloudFileLoadingStatus_Cloud3').output.firstRow.flgLoadingDone)",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "SpGetCloudFileLoadingStatus_Cloud3",
+									"type": "Lookup",
+									"dependsOn": [
+										{
+											"activity": "Cloud3Pipeline",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus]",
+											"storedProcedureParameters": {
+												"CloudInstance": {
+													"type": "Byte",
+													"value": "3"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnectionV2",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Set CurrentCountNoofCheck",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "SpGetCloudFileLoadingStatus_Cloud3",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "CurrentCountNoofCheck",
+										"value": {
+											"value": "@string(add(int(variables('PreviousCountNoofCheck')),1))",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Count Completed",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "PreviousCountNoofCheck",
+										"value": {
+											"value": "@variables('CurrentCountNoofCheck')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Cloud3Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Count Completed",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Cloud3Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"DataProcessDate": {
+												"value": "@pipeline().parameters.DataProcessDate",
+												"type": "Expression"
+											},
+											"CycleID": {
+												"value": "@pipeline().parameters.CycleID",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Set flgFullProcessingPending",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(variables('flgFullProcessingPending'),'1')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Wait 1 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 60
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"CycleID": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"flgFullProcessingPending": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"MaxNoofCheck": {
+						"type": "String",
+						"defaultValue": "11"
+					},
+					"CurrentCountNoofCheck": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"PreviousCountNoofCheck": {
+						"type": "String",
+						"defaultValue": "0"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2_15May2023')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -3700,7 +3906,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Cloud3Processing_Step1')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_Step1')]",
@@ -10921,49 +11129,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/LeapDataMorningProcessing_V2')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LoadLeapOnlyProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataFullProcessDaily_V2_Onlyleapdata",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"DataProcessDate": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_DataProcessDate')]",
-							"Container": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Container')]",
-							"Directory": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Directory')]",
-							"Step": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Step')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2023-05-14T18:55:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								45
-							],
-							"hours": [
-								2
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataFullProcessDaily_V2_Onlyleapdata')]"
 			]
 		}
 	]

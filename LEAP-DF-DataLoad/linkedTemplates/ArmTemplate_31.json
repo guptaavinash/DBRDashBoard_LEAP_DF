@@ -13,6 +13,115 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/HawkeyeDataImport')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyRouteSummary",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyRouteSummary",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Container": {
+									"value": "@pipeline().parameters.Container",
+									"type": "Expression"
+								},
+								"ProcessedDataDate": {
+									"value": "@pipeline().parameters.ProcessedDataDate",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "CopyRouteData",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "CopyRouteSummary",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyRouteData",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Container": {
+									"value": "@pipeline().parameters.Container",
+									"type": "Expression"
+								},
+								"ProcessedDataDate": {
+									"value": "@pipeline().parameters.ProcessedDataDate",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "CopyStoreData",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "CopyRouteData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyStoreData",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Container": {
+									"value": "@pipeline().parameters.Container",
+									"type": "Expression"
+								},
+								"ProcessedDataDate": {
+									"value": "@pipeline().parameters.ProcessedDataDate",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"concurrency": 1,
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"Container": {
+						"type": "string"
+					},
+					"ProcessedDataDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Hawk Eye"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/IDCMPExtract_05Jan2024')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -5813,159 +5922,6 @@
 					"ProcessDate": {
 						"type": "string"
 					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_RTDXFormat')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Lookup_ProcessDate",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderQuery": "SELECT ProcessDate FROM tmpDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DS_DF_NC_RouteCalendar_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEachDates",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Lookup_ProcessDate",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Lookup_ProcessDate').output.value",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "SingleFileCopy_RTDXFormat",
-									"type": "ExecutePipeline",
-									"dependsOn": [
-										{
-											"activity": "SpDeleteOldtmpleapdata",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "SingleFileCopy_RTDXFormat",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"Container": "cntleap",
-											"Folder": {
-												"value": "@concat('Site PSR Data/', formatDateTime(item().ProcessDate, 'yyyy'), '/', formatDateTime(item().ProcessDate, 'MM'), '/', formatDateTime(item().ProcessDate, 'dd'),formatDateTime(item().ProcessDate, 'MM'),formatDateTime(item().ProcessDate, 'yyyy'), '/')\n",
-												"type": "Expression"
-											},
-											"ProcessDate": {
-												"value": "@item().ProcessDate",
-												"type": "Expression"
-											}
-										}
-									}
-								},
-								{
-									"name": "SpDeleteOldtmpleapdata",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[SpDeleteDatafromtmpleaptable]"
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spLoadLeapDPSRIndividualProcess",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "SingleFileCopy_RTDXFormat",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spLoadLeapDPSRIndividualProcess]",
-										"storedProcedureParameters": {
-											"dt": {
-												"value": {
-													"value": "@item().ProcessDate",
-													"type": "Expression"
-												},
-												"type": "DateTime"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "Leap Data Pipeline"
