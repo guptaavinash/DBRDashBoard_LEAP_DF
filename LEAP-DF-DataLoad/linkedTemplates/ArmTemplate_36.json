@@ -33,6 +33,228 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/Cloud2Processing_Step1')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Until Cloud 2 Processing Done",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@or(not(equals(variables('flgFullProcessingPending'), '1')),\nnot(greaterOrEquals(int(variables('MaxNoofCheck')),int(variables('CurrentCountNoofCheck')))))\n",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Set flgFullProcessingPending",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "SpGetCloudFileLoadingStatus_Cloud2",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "flgFullProcessingPending",
+										"value": {
+											"value": "@string(activity('SpGetCloudFileLoadingStatus_Cloud2').output.firstRow.flgLoadingDone)",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "SpGetCloudFileLoadingStatus_Cloud2",
+									"type": "Lookup",
+									"dependsOn": [
+										{
+											"activity": "Cloud2Pipeline",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetCloudFileLoadingStatus]",
+											"storedProcedureParameters": {
+												"CloudInstance": {
+													"type": "Byte",
+													"value": "2"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnectionV2",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								},
+								{
+									"name": "Set CurrentCountNoofCheck",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "SpGetCloudFileLoadingStatus_Cloud2",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "CurrentCountNoofCheck",
+										"value": {
+											"value": "@string(add(int(variables('PreviousCountNoofCheck')),1))",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Count Completed",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "PreviousCountNoofCheck",
+										"value": {
+											"value": "@variables('CurrentCountNoofCheck')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Cloud2Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Count Completed",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Cloud2Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"DataProcessDate": {
+												"value": "@pipeline().parameters.DataProcessDate",
+												"type": "Expression"
+											},
+											"CycleID": {
+												"value": "@pipeline().parameters.CycleID",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Set flgFullProcessingPending",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(variables('flgFullProcessingPending'),'1')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Wait 1 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 60
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"CycleID": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"flgFullProcessingPending": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"MaxNoofCheck": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"CurrentCountNoofCheck": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"PreviousCountNoofCheck": {
+						"type": "String",
+						"defaultValue": "0"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Cloud3Processing')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -171,9 +393,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -403,9 +622,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -572,9 +788,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -598,9 +811,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -634,9 +844,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -3845,9 +4052,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -3882,9 +4086,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -3919,9 +4120,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4041,9 +4239,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4074,9 +4269,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4107,9 +4299,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4170,6 +4359,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Cloud2Processing_Step1')]",
 				"[concat(variables('factoryId'), '/pipelines/Cloud3Processing_Step1')]"
 			]
 		},
@@ -4190,9 +4380,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4228,9 +4415,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4346,9 +4530,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -4392,9 +4573,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -4425,9 +4603,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -4449,9 +4624,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -4461,7 +4633,11 @@
 										"waitOnCompletion": true,
 										"parameters": {
 											"ScaleVal": "DW1000c",
-											"flgcalled": 1
+											"flgcalled": 1,
+											"CheckDate": {
+												"value": "@utcnow()",
+												"type": "Expression"
+											}
 										}
 									}
 								},
@@ -4476,9 +4652,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -4530,9 +4703,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4563,9 +4733,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -4587,9 +4754,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -7664,9 +7828,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -7676,7 +7837,11 @@
 							"waitOnCompletion": true,
 							"parameters": {
 								"ScaleVal": "DW500c",
-								"flgcalled": 1
+								"flgcalled": 1,
+								"CheckDate": {
+									"value": "@utcnow()",
+									"type": "Expression"
+								}
 							}
 						}
 					},
@@ -7691,9 +7856,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -7878,9 +8040,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -7904,9 +8063,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -7940,9 +8096,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8056,9 +8209,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8080,9 +8230,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8135,9 +8282,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8159,9 +8303,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8183,9 +8324,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8304,9 +8442,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -8330,9 +8465,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -8359,9 +8491,6 @@
 						"name": "Loading Temp and Final Tables",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8392,9 +8521,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8583,9 +8709,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -8609,9 +8732,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -8642,9 +8762,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -8669,9 +8786,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8791,9 +8905,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8815,9 +8926,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8870,9 +8978,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8894,9 +8999,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -8918,9 +9020,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9043,9 +9142,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9069,9 +9165,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9098,9 +9191,6 @@
 						"name": "Loading Temp and Final Tables",
 						"type": "ExecutePipeline",
 						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9205,9 +9295,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9229,9 +9316,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9284,9 +9368,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9308,9 +9389,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9332,9 +9410,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9453,9 +9528,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9479,9 +9551,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9512,9 +9581,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9539,9 +9605,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9661,9 +9724,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9685,9 +9745,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9740,9 +9797,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9764,9 +9818,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9788,9 +9839,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -9909,9 +9957,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9935,9 +9980,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -9971,9 +10013,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10087,9 +10126,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10111,9 +10147,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10166,9 +10199,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10190,9 +10220,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10214,9 +10241,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10335,9 +10359,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -10361,9 +10382,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -10397,9 +10415,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10430,9 +10445,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10537,9 +10549,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10561,9 +10570,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10616,9 +10622,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10640,9 +10643,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10664,9 +10664,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10726,9 +10723,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10759,9 +10753,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10792,9 +10783,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10816,9 +10804,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10871,9 +10856,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10895,9 +10877,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -10919,9 +10898,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -11027,9 +11003,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -11053,9 +11026,6 @@
 											]
 										}
 									],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -11225,9 +11195,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
@@ -11322,9 +11289,6 @@
 									"name": "Send Notification",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -11341,9 +11305,6 @@
 									"name": "MiddleDFProcessing",
 									"type": "ExecutePipeline",
 									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
 									"userProperties": [],
 									"typeProperties": {
 										"pipeline": {
@@ -11410,194 +11371,6 @@
 								]
 							}
 						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SmartBasketProcess",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"Step": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMorningProcessing_V2_13Dec2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "SpCheckAllFileProcessStatus",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpCheckAllFileProcessStatus]",
-								"storedProcedureParameters": {
-									"Step": {
-										"type": "Byte",
-										"value": {
-											"value": "1",
-											"type": "Expression"
-										}
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "If All Final Table Loaded",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "SpCheckAllFileProcessStatus",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@equals(activity('SpCheckAllFileProcessStatus').output.firstRow.flgProcessingDone,1 )",
-								"type": "Expression"
-							},
-							"ifFalseActivities": [
-								{
-									"name": "Send Notification",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "Send Notification",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {}
-									}
-								}
-							],
-							"ifTrueActivities": [
-								{
-									"name": "MiddleDFProcessing",
-									"type": "ExecutePipeline",
-									"dependsOn": [],
-									"policy": {
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "MiddleDFProcessing",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"DataProcessDate": {
-												"value": "@pipeline().parameters.DataProcessDate",
-												"type": "Expression"
-											},
-											"Step": {
-												"value": "@pipeline().parameters.Step",
-												"type": "Expression"
-											}
-										}
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "If All Final Table Loaded",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "SmartBasketProcess",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
 						"userProperties": [],
 						"typeProperties": {
 							"pipeline": {
