@@ -13,6 +13,1709 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/LoadFile-Staging-To-DB_DRCP')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "LoadFile-ADLS-To-DB",
+				"activities": [
+					{
+						"name": "GetFileList_Cloud1",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "CopyS3-To-Staging_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset_V2_Cloud1",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud1",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList_Cloud1').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),bool(startswith(item().name,'DRCP_cloud01_')))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud1",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud1').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "DRCP_Could1",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@bool(startswith(item().name,'DRCP_cloud01_'))",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "DRCP_Cloud1",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"wildcardFileName": "DRCP_cloud01_*",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": "TRUNCATE TABLE tmpRawLEAPTAS_DRCP_Cloud1",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "branchcode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchcode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "branchname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailername",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailername",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercontact",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercontact",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "stlname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "stlname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeltype",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeltype",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeldescription",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeldescription",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "sectorname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sectorname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "latitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "latitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "longitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "longitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "visit_date",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "visit_date",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Lastmodifieddatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "LeapCSV_Staging_V2_Cloud1",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_DRCP_Cloud1",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											},
+											{
+												"name": "EXEC spDataLoadRawLeapTAS_DRCP_Cloud1",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "DRCP_Cloud1",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[spDataLoadRawLeapTAS_DRCP_Cloud1]"
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "CopyS3-To-Staging_Cloud1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging_Cloud1_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"windowStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"windowEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "CopyS3-To-Staging_Cloud2",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging_Cloud2_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"windowStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"windowEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "GetFileList_Cloud2",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "CopyS3-To-Staging_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset_V2_Cloud2",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud2",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList_Cloud2').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),bool(startswith(item().name,'DRCP_cloud02_')))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud2",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud2').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "DRCP_Could2",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@bool(startswith(item().name,'DRCP_cloud02_'))",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "DRCP_Cloud2",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"wildcardFileName": "DRCP_cloud02_*",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": "TRUNCATE TABLE tmpRawLEAPTAS_DRCP_Cloud2",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "branchcode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchcode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "branchname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailername",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailername",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercontact",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercontact",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "stlname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "stlname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeltype",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeltype",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeldescription",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeldescription",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "sectorname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sectorname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "latitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "latitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "longitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "longitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "visit_date",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "visit_date",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Lastmodifieddatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "LeapCSV_Staging_V2_Cloud2",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_DRCP_Cloud2",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											},
+											{
+												"name": "spDataLoadRawLeapTAS_DRCP_Cloud2",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "DRCP_Cloud2",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[spDataLoadRawLeapTAS_DRCP_Cloud2]"
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "CopyS3-To-Staging_Cloud3",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging_Cloud3_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"windowStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"windowEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "GetFileList_Cloud3",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "CopyS3-To-Staging_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset_V2_Cloud3",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud3",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList_Cloud3').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),bool(startswith(item().name,'DRCP_cloud03_')))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud3",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud3').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "DRCP_Could3",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@bool(startswith(item().name,'DRCP_cloud03_'))",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "DRCP_Cloud3",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"wildcardFileName": "DRCP_cloud03_*",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": "TRUNCATE TABLE tmpRawLEAPTAS_DRCP_Cloud3",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "branchcode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchcode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "branchname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailername",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailername",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercontact",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercontact",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "stlname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "stlname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeltype",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeltype",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeldescription",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeldescription",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "sectorname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sectorname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "latitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "latitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "longitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "longitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "visit_date",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "visit_date",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Lastmodifieddatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "LeapCSV_Staging_V2_Cloud3",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_DRCP_Cloud3",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											},
+											{
+												"name": "spDataLoadRawLeapTAS_DRCP_Cloud3",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "DRCP_Cloud3",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[spDataLoadRawLeapTAS_DRCP_Cloud3]"
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level3')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFoldername",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Container",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFoldername",
+						"description": "Iterate each folder and find the folder or file inside it.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFolder",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFolder').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "inner folder loop",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "MoveADLS-To-dfdatafoundation_Level4",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceStore_Container": {
+												"value": "@pipeline().parameters.SourceStore_Container",
+												"type": "Expression"
+											},
+											"SourceStore_Directory": {
+												"value": "@concat(pipeline().parameters.SourceStore_Directory, item().name ,'/')\n\n",
+												"type": "Expression"
+											},
+											"DestinationStore_Container": {
+												"value": "@pipeline().parameters.DestinationStore_Container",
+												"type": "Expression"
+											},
+											"DestinationStore_Directory": {
+												"value": "@pipeline().parameters.DestinationStore_Directory",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFolder",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFoldername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFoldername').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'Folder')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Container": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Container": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:01Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PCode_Maximus_Job')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpMonthStartProcessingCheck",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpMonthStartProcessingCheck]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "If Condition1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "SpMonthStartProcessingCheck",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "Maximus Rurban Split",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Wait1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Maximus Rurban Split",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 1
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DMinus1Date": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_ProcessDate",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": "SELECT ProcessDate FROM tmpDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_DF_NC_RouteCalendar_SUBD",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachDates",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_ProcessDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_ProcessDate').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "SingleFileCopy",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "SpDeleteOldtmpleapdata",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SingleFileCopy",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Container": "cntleap",
+											"Folder": {
+												"value": "@concat('/', formatDateTime(item().ProcessDate, 'yyyy'), '/', formatDateTime(item().ProcessDate, 'MM'), '/', formatDateTime(item().ProcessDate, 'dd'), '/')\n",
+												"type": "Expression"
+											},
+											"ProcessDate": {
+												"value": "@item().ProcessDate",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "SpDeleteOldtmpleapdata",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpDeleteDatafromtmpleaptable]"
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "spLoadLeapDPSRIndividualProcess",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SingleFileCopy",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spLoadLeapDPSRIndividualProcess]",
+										"storedProcedureParameters": {
+											"dt": {
+												"value": {
+													"value": "@item().ProcessDate",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_CCCR')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1152,7 +2855,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing_V2')]",
@@ -1760,7 +3465,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_04Jun2023')]",
@@ -2480,7 +4187,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_08Jul2023')]",
@@ -3064,7 +4773,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_09Feb2023')]",
@@ -3361,1247 +5072,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_09Jun2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "DCC",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC_Processing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DCC_Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spDataHubDataPopulation",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalCubeProcessing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalCubeProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinusOneDate": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								},
-								"flgcalled": 0
-							}
-						}
-					},
-					{
-						"name": "spDataHubDataPopulation",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataHubDataPopulation]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_09Mar2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "spAS_PopulateDimTables-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateDimTables]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spAS_PopulateFactTables-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateDimTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateFactTables]",
-							"storedProcedureParameters": {
-								"DMinus1Date": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "APIDataFileGeneration",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateDimTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "APIDataFileGeneration",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Send Success Notification",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "APIDataFileGeneration",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Send Notification",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"EmailTo": "Avinash@astix.in,Alok@astix.in,gaurav@astix.in,phegade.md@pg.com,bussa.r@pg.com,varun@astix.in,helpdesk@astix.in,trivedi.dt.1@pg.com",
-								"Subject": "API Process Success",
-								"ErrorMessage": "API process and files generated successful"
-							}
-						}
-					},
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_ResumeandScale_S9",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateFactTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_ResumeandScale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DW_Resume_Scale DW200_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_ResumeandScale_S9",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "DCC_Processing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Resume_Scale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"ScaleVal": "DW200c",
-								"flgcalled": 0
-							}
-						}
-					},
-					{
-						"name": "DCC",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "PCode_Maximus_Job",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "PCode_Maximus_Job",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "PCode_Maximus_Job",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinus1Date": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DCC_Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateFactTables-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalScale_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_PCode_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalScale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "spAS_PopulateFactTables-DF_PCode",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateFactTables_PCode]",
-							"storedProcedureParameters": {
-								"DMinus1Date": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "AS_CubeProcess_PCode_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateFactTables-DF_PCode",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_10Feb2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_ResumeandScale_S9",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_ResumeandScale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DW_Resume_Scale DW200_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_ResumeandScale_S9",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "DCC_Processing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Resume_Scale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"ScaleVal": "DW200c",
-								"flgcalled": 0
-							}
-						}
-					},
-					{
-						"name": "DCC",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "PCode_Maximus_Job",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "PCode_Maximus_Job",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "PCode_Maximus_Job",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinus1Date": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "spAS_PopulateFactTables-DF_PCode",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateFactTables_PCode]",
-							"storedProcedureParameters": {
-								"DMinus1Date": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "AS_CubeProcess_PCode_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateFactTables-DF_PCode",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DCC_Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalScale_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_PCode_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalScale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_18Sep2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "spCalculateLSSSchemeAgainstActData-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLSSSchemeAgainstActData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spCalculateLuckDrawStore-TAS",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spTAS_UpdateTeleCallingActGPPoints-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spCalculateLuckDrawStore]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "FiveStar Data Transfer",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "spCalculateLSSSchemeAgainstActData-TAS",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "SqlDWSink",
-								"allowCopyCommand": true,
-								"copyCommandSettings": {}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "TeleCallingId",
-											"type": "Int32"
-										},
-										"sink": {
-											"name": "TelecallingID",
-											"type": "Int32"
-										}
-									},
-									{
-										"source": {
-											"name": "GPPoints",
-											"type": "Byte"
-										},
-										"sink": {
-											"name": "GPPOints",
-											"type": "Byte"
-										}
-									},
-									{
-										"source": {
-											"name": "ParameterId",
-											"type": "Byte"
-										},
-										"sink": {
-											"name": "Parameterid",
-											"type": "Byte"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_tmpTeleCallingFiveStarGPPoints",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_tmpTAS_FiveStarGPPoints",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "spTAS_UpdateTeleCallingActGPPoints-DF",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "FiveStar Data Transfer",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spTAS_UpdateTeleCallingActGPPoints]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "DW_Resume_Scale DW200_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spTAS_UpdateTeleCallingActGPPoints-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Resume_Scale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"ScaleVal": "DW200c",
-								"flgcalled": 0
-							}
-						}
-					},
-					{
-						"name": "DCC",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC_Processing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DCC_Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalCubeProcessing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalCubeProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinusOneDate": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								},
-								"flgcalled": 1
-							}
-						}
-					},
-					{
-						"name": "PCode_Maximus_Job",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DWScaleafterProcessing_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "PCode_Maximus_Job",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinus1Date": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "DWScaleafterProcessing_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FinalCubeProcessing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "DCC",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DWScaleafterProcessing_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		}
 	]
 }
