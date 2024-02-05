@@ -13,6 +13,1176 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_14Oct2022')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "spGetDFParameterDetail",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "spTAS_DailyDataRefreshSalesData-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_DailyDataRefreshSalesData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spRolloverDataLoad-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spTAS_MapTeleCallingInvDetail-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spLoadRollOverDayZeroData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spRunForFiveStar-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spRolloverDataLoad-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spRunForFiveStar]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spCalculateLSSSchemeAgainstActData-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spRunForFiveStar-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spCalculateLSSSchemeAgainstActData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spCalculateLuckDrawStore-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spTAS_UpdateTeleCallingActGPPoints-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spCalculateLuckDrawStore]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spDF_GenerateInvWiseNetSales-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDF_GenerateInvWiseNetSales]",
+							"storedProcedureParameters": {
+								"Rptmonthyear": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.RptMonthYear",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spDFTAS_PopulateSBDWorkingData-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spDF_GenerateInvWiseNetSales-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spDFTAS_PopulateSBDWorkingData]",
+							"storedProcedureParameters": {
+								"RptMonthYear": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.SBDRptMonthYear",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spTAS_PopulateSBDGaps-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spDFTAS_PopulateSBDWorkingData-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_PopulateSBDGaps]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spAPI_PopulateExtractIDCMP-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spAPI_PopulateExtractIDCMP]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spAS_PopulateDimTables-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spAS_PopulateDimTables]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spAS_PopulateFactTables-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spAS_PopulateDimTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spTAS_MapTeleCallingInvDetail-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spPopulateTASFutureDateInRouteCalendar-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spAS_PopulateFactTables]",
+							"storedProcedureParameters": {
+								"DMinus1Date": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spAPI_PopulateAPIBaseTables-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spAS_PopulateFactTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spAPI_PopulateAPIBaseTables]",
+							"storedProcedureParameters": {
+								"DMinusOneDate": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spTAS_PopulateSchemeApplied-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_PopulateSchemeApplied]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spTAS_PopActiveSBFFrmInv-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_PopActiveSBFFrmInv]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spPopulateSchemeData-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateSchemeData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "MasterDataForAPI",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spAPI_PopulateExtractIDCMP-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "MasterDataForAPI",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "APIDataFileGeneration",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "MasterDataForAPI",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "APIDataFileGeneration",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Send Success Notification",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "APIDataFileGeneration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Send Notification",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"EmailTo": "Avinash@astix.in,Alok@astix.in,gaurav@astix.in,phegade.md@pg.com,bussa.r@pg.com,ramesh@astix.in,varun@astix.in,helpdesk@astix.in,project.tl@orientindia.net",
+								"Subject": "API Process Success",
+								"ErrorMessage": "API process and files generated successful"
+							}
+						}
+					},
+					{
+						"name": "AS_CubeProcess_Sync_Fact",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DW_Resume_Scale DW200_V2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_CubeProcess_Sync_Fact",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "spPopulateFactSBDData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spDFTAS_PopulateSBDWorkingData-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateFactSBDData]",
+							"storedProcedureParameters": {
+								"RptMonthYear": {
+									"value": {
+										"value": "@activity('spGetDFParameterDetail').output.firstRow.SBDRptMonthYear",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spTAS_PopulateStoreDSEWiseSales-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_PopulateStoreDSEWiseSales]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SQL_Scale S6 400 DTU",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spCalculateLuckDrawStore-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spTAS_PopActiveSBFFrmInv-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spPopulateSchemeData-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spTAS_PopulateStoreSchemeDistributionCount-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "TransferInvDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SQL_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "S6",
+								"tier": "Standard"
+							}
+						}
+					},
+					{
+						"name": "AS_ResumeandScale",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spAS_PopulateFactTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_ResumeandScale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "spTAS_MapTeleCallingInvDetail-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spTAS_DailyDataRefreshSalesData-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_MapTeleCallingInvDetail]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "FiveStar Data Transfer",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "spCalculateLSSSchemeAgainstActData-TAS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowCopyCommand": true,
+								"copyCommandSettings": {}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "DFPolybaseStagingStorageLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "TeleCallingId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TeleCallingId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "GPPoints",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "GPPoints",
+											"type": "Byte"
+										}
+									},
+									{
+										"source": {
+											"name": "ParameterId",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "ParameterId",
+											"type": "Byte"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_TAS_tmpTeleCallingFiveStarGPPoints",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_tmpTAS_FiveStarGPPoints",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "spTAS_UpdateTeleCallingActGPPoints-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "FiveStar Data Transfer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_UpdateTeleCallingActGPPoints]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spTAS_SmartBasketPopulateBaseDetail-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spAS_PopulateFactTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_SmartBasketPopulateBaseDetail]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spTAS_PopulateStoreSchemeDistributionCount-TAS",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spTAS_PopulateSchemeApplied-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spTAS_PopulateStoreSchemeDistributionCount]"
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "DW_Resume_Scale DW200_V2",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_ResumeandScale",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spPopulateFactSBDData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spAPI_PopulateAPIBaseTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "RetailerFlagUpdate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "spTAS_SmartBasketPopulateBaseDetail-DF",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "spSubdHawkeyePopuldateData",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "spSniDbrPopulateTables",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "DW_Resume_Scale_V2",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"ScaleVal": "DW200c"
+							}
+						}
+					},
+					{
+						"name": "spSubdHawkeyePopuldateData",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spAS_PopulateFactTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spSubdHawkeyePopuldateData]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spSniDbrPopulateTables",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spAS_PopulateFactTables-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spSniDbrPopulateTables]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "RetailerFlagUpdate",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spTAS_MapTeleCallingInvDetail-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "RetailerFlagUpdate",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "AR Data Transfer",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AR Data Transfer",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Maximus Rurban Split",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_Sync_Fact",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Maximus Rurban Split",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "spPopulateTASFutureDateInRouteCalendar-DF",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spGetDFParameterDetail",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spPopulateTASFutureDateInRouteCalendar]"
+						},
+						"linkedServiceName": {
+							"referenceName": "Dev_DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "TransferInvDetails",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "spTAS_MapTeleCallingInvDetail-DF",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TransferInvDetails",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_26May2023')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -5594,1522 +6764,6 @@
 					"RptMonthYear": {
 						"type": "string"
 					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LoadER-To-DB')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "GetFileDetails",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpGetERFileDetails]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "Checkfiles",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "GetFileDetails",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFileDetails').output.value\n",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "GetFileList",
-									"type": "GetMetadata",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"dataset": {
-											"referenceName": "ERStorageSourceDataset_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												},
-												"folder": " ",
-												"directory": "cntelasticrun"
-											}
-										},
-										"fieldList": [
-											"exists",
-											"itemName",
-											"lastModified",
-											"itemType"
-										],
-										"storeSettings": {
-											"type": "AzureBlobStorageReadSettings",
-											"recursive": true,
-											"enablePartitionDiscovery": false
-										},
-										"formatSettings": {
-											"type": "BinaryReadSettings"
-										}
-									}
-								},
-								{
-									"name": "If File Exists",
-									"type": "IfCondition",
-									"dependsOn": [
-										{
-											"activity": "GetFileList",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@activity('GetFileList').output.exists",
-											"type": "Expression"
-										},
-										"ifTrueActivities": [
-											{
-												"name": "IfFileFound",
-												"type": "Switch",
-												"dependsOn": [
-													{
-														"activity": "SpERFileImportLog_Start",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"userProperties": [],
-												"typeProperties": {
-													"on": {
-														"value": "@string(item().FileID)",
-														"type": "Expression"
-													},
-													"cases": [
-														{
-															"value": "150",
-															"activities": [
-																{
-																	"name": "ERStoremaster",
-																	"description": "Copy a file from the source store to the destination store.",
-																	"type": "Copy",
-																	"dependsOn": [],
-																	"policy": {
-																		"timeout": "7.00:00:00",
-																		"retry": 0,
-																		"retryIntervalInSeconds": 30,
-																		"secureOutput": false,
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"source": {
-																			"type": "DelimitedTextSource",
-																			"additionalColumns": [
-																				{
-																					"name": "Filename",
-																					"value": {
-																						"value": "@activity('GetFileList').output.itemName",
-																						"type": "Expression"
-																					}
-																				},
-																				{
-																					"name": "LastModifiedDatetime",
-																					"value": {
-																						"value": "@addminutes(utcnow(),330)",
-																						"type": "Expression"
-																					}
-																				},
-																				{
-																					"name": "FileSetID",
-																					"value": {
-																						"value": "0",
-																						"type": "Expression"
-																					}
-																				}
-																			],
-																			"storeSettings": {
-																				"type": "AzureBlobStorageReadSettings",
-																				"recursive": true,
-																				"wildcardFileName": {
-																					"value": "@activity('GetFileList').output.itemName",
-																					"type": "Expression"
-																				},
-																				"enablePartitionDiscovery": false
-																			},
-																			"formatSettings": {
-																				"type": "DelimitedTextReadSettings"
-																			},
-																			"recursive": false
-																		},
-																		"sink": {
-																			"type": "SqlDWSink",
-																			"preCopyScript": {
-																				"value": "TRUNCATE TABLE [@{item().temptablename}]",
-																				"type": "Expression"
-																			},
-																			"allowPolyBase": true,
-																			"polyBaseSettings": {
-																				"rejectValue": 0,
-																				"rejectType": "value",
-																				"useTypeDefault": true
-																			},
-																			"disableMetricsCollection": false
-																		},
-																		"enableStaging": true,
-																		"stagingSettings": {
-																			"linkedServiceName": {
-																				"referenceName": "DFPolybaseStagingStorageLink",
-																				"type": "LinkedServiceReference"
-																			},
-																			"path": "polybasestaging"
-																		},
-																		"dataIntegrationUnits": 2,
-																		"translator": {
-																			"type": "TabularTranslator",
-																			"mappings": [
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 1
-																					},
-																					"sink": {
-																						"name": "srce_sys_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 2
-																					},
-																					"sink": {
-																						"name": "fact_type_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 3
-																					},
-																					"sink": {
-																						"name": "sbmsn_type_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 4
-																					},
-																					"sink": {
-																						"name": "due_period",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 5
-																					},
-																					"sink": {
-																						"name": "time_perd_type_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 6
-																					},
-																					"sink": {
-																						"name": "time_perd_start_date",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 7
-																					},
-																					"sink": {
-																						"name": "trade_channel_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 8
-																					},
-																					"sink": {
-																						"name": "cust_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 9
-																					},
-																					"sink": {
-																						"name": "store",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 10
-																					},
-																					"sink": {
-																						"name": "branch",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 11
-																					},
-																					"sink": {
-																						"name": "subd_flag",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 12
-																					},
-																					"sink": {
-																						"name": "in_coverage",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 13
-																					},
-																					"sink": {
-																						"name": "status",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 14
-																					},
-																					"sink": {
-																						"name": "golden",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 15
-																					},
-																					"sink": {
-																						"name": "store_name",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 16
-																					},
-																					"sink": {
-																						"name": "storeaddress_1",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 17
-																					},
-																					"sink": {
-																						"name": "storeaddress_2",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 18
-																					},
-																					"sink": {
-																						"name": "store_address_3",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 19
-																					},
-																					"sink": {
-																						"name": "zip_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 20
-																					},
-																					"sink": {
-																						"name": "generic_text_field_1",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 21
-																					},
-																					"sink": {
-																						"name": "generic_text_field_2",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 22
-																					},
-																					"sink": {
-																						"name": "generic_text_field_3",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 23
-																					},
-																					"sink": {
-																						"name": "generic_text_field_4",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 24
-																					},
-																					"sink": {
-																						"name": "generic_text_field_5",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 25
-																					},
-																					"sink": {
-																						"name": "generic_num_field_1",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 26
-																					},
-																					"sink": {
-																						"name": "generic_num_field_2",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 27
-																					},
-																					"sink": {
-																						"name": "generic_num_field_3",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 28
-																					},
-																					"sink": {
-																						"name": "generic_num_field_4",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 29
-																					},
-																					"sink": {
-																						"name": "generic_num_field_5",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 30
-																					},
-																					"sink": {
-																						"name": "extra_field_1",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 31
-																					},
-																					"sink": {
-																						"name": "extra_field_2",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 32
-																					},
-																					"sink": {
-																						"name": "extra_field_3",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 33
-																					},
-																					"sink": {
-																						"name": "subd",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 34
-																					},
-																					"sink": {
-																						"name": "extra_field_5",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 35
-																					},
-																					"sink": {
-																						"name": "extra_field_6",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 36
-																					},
-																					"sink": {
-																						"name": "extra_field_7",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 37
-																					},
-																					"sink": {
-																						"name": "extra_field_8",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 38
-																					},
-																					"sink": {
-																						"name": "extra_field_9",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 39
-																					},
-																					"sink": {
-																						"name": "extra_field_10",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 40
-																					},
-																					"sink": {
-																						"name": "extra_field_11",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 41
-																					},
-																					"sink": {
-																						"name": "extra_field_12",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 42
-																					},
-																					"sink": {
-																						"name": "extra_field_13",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 43
-																					},
-																					"sink": {
-																						"name": "extra_field_14",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 44
-																					},
-																					"sink": {
-																						"name": "extra_field_15",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 45
-																					},
-																					"sink": {
-																						"name": "extra_field_16",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 46
-																					},
-																					"sink": {
-																						"name": "extra_field_17",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 47
-																					},
-																					"sink": {
-																						"name": "extra_field_18",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 48
-																					},
-																					"sink": {
-																						"name": "extra_field_19",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"name": "Filename",
-																						"type": "String"
-																					},
-																					"sink": {
-																						"name": "extra_field_20",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"name": "LastModifiedDatetime",
-																						"type": "String"
-																					},
-																					"sink": {
-																						"name": "FileName",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"name": "FileSetID",
-																						"type": "String"
-																					},
-																					"sink": {
-																						"name": "LastModifiedDatetime",
-																						"type": "String"
-																					}
-																				}
-																			]
-																		}
-																	},
-																	"inputs": [
-																		{
-																			"referenceName": "CSVDataSource_File_withoutGzip",
-																			"type": "DatasetReference",
-																			"parameters": {
-																				"Container": "cntelasticrun",
-																				"Directory": " ",
-																				"Filename": {
-																					"value": "@item().name",
-																					"type": "Expression"
-																				}
-																			}
-																		}
-																	],
-																	"outputs": [
-																		{
-																			"referenceName": "DS_Destination_table",
-																			"type": "DatasetReference",
-																			"parameters": {
-																				"tablename": {
-																					"value": "@item().temptablename",
-																					"type": "Expression"
-																				}
-																			}
-																		}
-																	]
-																},
-																{
-																	"name": "spDataLoadtmpRawLEAPTAS_RTRM_ER",
-																	"type": "SqlServerStoredProcedure",
-																	"dependsOn": [
-																		{
-																			"activity": "ERStoremaster",
-																			"dependencyConditions": [
-																				"Succeeded"
-																			]
-																		}
-																	],
-																	"policy": {
-																		"timeout": "0.12:00:00",
-																		"retry": 0,
-																		"retryIntervalInSeconds": 30,
-																		"secureOutput": false,
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"storedProcedureName": "[[dbo].[spDataLoadtmpRawLEAPTAS_RTRM_ER]",
-																		"storedProcedureParameters": {
-																			"FileName": {
-																				"value": {
-																					"value": "@item().name",
-																					"type": "Expression"
-																				},
-																				"type": "String"
-																			}
-																		}
-																	},
-																	"linkedServiceName": {
-																		"referenceName": "DataFoundationDB",
-																		"type": "LinkedServiceReference"
-																	}
-																},
-																{
-																	"name": "CopyERStaging-To-ADLS-OneFile",
-																	"type": "ExecutePipeline",
-																	"dependsOn": [
-																		{
-																			"activity": "spDataLoadtmpRawLEAPTAS_RTRM_ER",
-																			"dependencyConditions": [
-																				"Succeeded"
-																			]
-																		}
-																	],
-																	"policy": {
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"pipeline": {
-																			"referenceName": "CopyERStaging-To-ADLS-OneFile",
-																			"type": "PipelineReference"
-																		},
-																		"waitOnCompletion": true,
-																		"parameters": {
-																			"Directory": "cntelasticrun",
-																			"Folder": "StoreMaster",
-																			"FileName": {
-																				"value": "@activity('GetFileList').output.itemName",
-																				"type": "Expression"
-																			}
-																		}
-																	}
-																},
-																{
-																	"name": "DeleteERStagingOneFile_StoreMaster",
-																	"type": "ExecutePipeline",
-																	"dependsOn": [
-																		{
-																			"activity": "CopyERStaging-To-ADLS-OneFile",
-																			"dependencyConditions": [
-																				"Succeeded"
-																			]
-																		}
-																	],
-																	"policy": {
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"pipeline": {
-																			"referenceName": "DeleteERStagingOneFile",
-																			"type": "PipelineReference"
-																		},
-																		"waitOnCompletion": true,
-																		"parameters": {
-																			"FileName": {
-																				"value": "@activity('GetFileList').output.itemName",
-																				"type": "Expression"
-																			}
-																		}
-																	}
-																}
-															]
-														},
-														{
-															"value": "151",
-															"activities": [
-																{
-																	"name": "ERSales",
-																	"description": "Copy a file from the source store to the destination store.",
-																	"type": "Copy",
-																	"dependsOn": [],
-																	"policy": {
-																		"timeout": "7.00:00:00",
-																		"retry": 0,
-																		"retryIntervalInSeconds": 30,
-																		"secureOutput": false,
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"source": {
-																			"type": "DelimitedTextSource",
-																			"additionalColumns": [
-																				{
-																					"name": "Filename",
-																					"value": {
-																						"value": "@activity('GetFileList').output.itemName",
-																						"type": "Expression"
-																					}
-																				},
-																				{
-																					"name": "LastModifiedDatetime",
-																					"value": {
-																						"value": "@addminutes(utcnow(),330)",
-																						"type": "Expression"
-																					}
-																				},
-																				{
-																					"name": "FileSetID",
-																					"value": {
-																						"value": "0",
-																						"type": "Expression"
-																					}
-																				}
-																			],
-																			"storeSettings": {
-																				"type": "AzureBlobStorageReadSettings",
-																				"recursive": true,
-																				"wildcardFileName": {
-																					"value": "@activity('GetFileList').output.itemName",
-																					"type": "Expression"
-																				},
-																				"enablePartitionDiscovery": false
-																			},
-																			"formatSettings": {
-																				"type": "DelimitedTextReadSettings"
-																			},
-																			"recursive": false
-																		},
-																		"sink": {
-																			"type": "SqlDWSink",
-																			"preCopyScript": {
-																				"value": "TRUNCATE TABLE [@{item().temptablename}]",
-																				"type": "Expression"
-																			},
-																			"allowPolyBase": true,
-																			"polyBaseSettings": {
-																				"rejectValue": 0,
-																				"rejectType": "value",
-																				"useTypeDefault": true
-																			},
-																			"disableMetricsCollection": false
-																		},
-																		"enableStaging": true,
-																		"stagingSettings": {
-																			"linkedServiceName": {
-																				"referenceName": "DFPolybaseStagingStorageLink",
-																				"type": "LinkedServiceReference"
-																			},
-																			"path": "polybasestaging"
-																		},
-																		"dataIntegrationUnits": 2,
-																		"translator": {
-																			"type": "TabularTranslator",
-																			"mappings": [
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 1
-																					},
-																					"sink": {
-																						"name": "srce_sys_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 2
-																					},
-																					"sink": {
-																						"name": "fact_type_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 3
-																					},
-																					"sink": {
-																						"name": "sbmsn_type_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 4
-																					},
-																					"sink": {
-																						"name": "due_perd",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 5
-																					},
-																					"sink": {
-																						"name": "time_perd_type_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 6
-																					},
-																					"sink": {
-																						"name": "day_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 7
-																					},
-																					"sink": {
-																						"name": "derived_isis_cust_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 8
-																					},
-																					"sink": {
-																						"name": "prod_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 9
-																					},
-																					"sink": {
-																						"name": "geo_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 10
-																					},
-																					"sink": {
-																						"name": "org_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 11
-																					},
-																					"sink": {
-																						"name": "subd",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 12
-																					},
-																					"sink": {
-																						"name": "proft_ctr_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 13
-																					},
-																					"sink": {
-																						"name": "scndr_ship_flag",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 14
-																					},
-																					"sink": {
-																						"name": "trade_chanl_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 15
-																					},
-																					"sink": {
-																						"name": "iso_crncy_code_char",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 16
-																					},
-																					"sink": {
-																						"name": "mm_hybrid_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 17
-																					},
-																					"sink": {
-																						"name": "func_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 18
-																					},
-																					"sink": {
-																						"name": "captl_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 19
-																					},
-																					"sink": {
-																						"name": "measr_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 20
-																					},
-																					"sink": {
-																						"name": "brand",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 21
-																					},
-																					"sink": {
-																						"name": "genrc_dmnsn_1_type_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 22
-																					},
-																					"sink": {
-																						"name": "branch",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 23
-																					},
-																					"sink": {
-																						"name": "genrc_dmnsn_2_type_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 24
-																					},
-																					"sink": {
-																						"name": "genrc_dmnsn_2_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 25
-																					},
-																					"sink": {
-																						"name": "genrc_dmnsn_3_type_id",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 26
-																					},
-																					"sink": {
-																						"name": "store",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 27
-																					},
-																					"sink": {
-																						"name": "fact_qlty_code",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 28
-																					},
-																					"sink": {
-																						"name": "niv_flag",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 29
-																					},
-																					"sink": {
-																						"name": "niv_total",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 30
-																					},
-																					"sink": {
-																						"name": "attr_val_2",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 31
-																					},
-																					"sink": {
-																						"name": "su",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"type": "String",
-																						"ordinal": 32
-																					},
-																					"sink": {
-																						"name": "giv",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"name": "Filename",
-																						"type": "String"
-																					},
-																					"sink": {
-																						"name": "FileName",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"name": "LastModifiedDatetime",
-																						"type": "String"
-																					},
-																					"sink": {
-																						"name": "LastModifiedDatetime",
-																						"type": "String"
-																					}
-																				},
-																				{
-																					"source": {
-																						"name": "FileSetID",
-																						"type": "String"
-																					},
-																					"sink": {
-																						"name": "FileSetId",
-																						"type": "Int64"
-																					}
-																				}
-																			]
-																		}
-																	},
-																	"inputs": [
-																		{
-																			"referenceName": "CSVDataSource_File_withoutGzip",
-																			"type": "DatasetReference",
-																			"parameters": {
-																				"Container": "cntelasticrun",
-																				"Directory": " ",
-																				"Filename": {
-																					"value": "@item().name",
-																					"type": "Expression"
-																				}
-																			}
-																		}
-																	],
-																	"outputs": [
-																		{
-																			"referenceName": "DS_Destination_table",
-																			"type": "DatasetReference",
-																			"parameters": {
-																				"tablename": {
-																					"value": "@item().temptablename",
-																					"type": "Expression"
-																				}
-																			}
-																		}
-																	]
-																},
-																{
-																	"name": "spDataLoadtmpRawLEAPTAS_Sales_ER",
-																	"type": "SqlServerStoredProcedure",
-																	"dependsOn": [
-																		{
-																			"activity": "ERSales",
-																			"dependencyConditions": [
-																				"Succeeded"
-																			]
-																		}
-																	],
-																	"policy": {
-																		"timeout": "0.12:00:00",
-																		"retry": 0,
-																		"retryIntervalInSeconds": 30,
-																		"secureOutput": false,
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"storedProcedureName": "[[dbo].[spDataLoadtmpRawLEAPTAS_Sales_ER]",
-																		"storedProcedureParameters": {
-																			"FileName": {
-																				"value": {
-																					"value": "@item().name",
-																					"type": "Expression"
-																				},
-																				"type": "String"
-																			}
-																		}
-																	},
-																	"linkedServiceName": {
-																		"referenceName": "DataFoundationDB",
-																		"type": "LinkedServiceReference"
-																	}
-																},
-																{
-																	"name": "CopyERStaging-To-ADLS-OneFile_copy1",
-																	"type": "ExecutePipeline",
-																	"dependsOn": [
-																		{
-																			"activity": "spDataLoadtmpRawLEAPTAS_Sales_ER",
-																			"dependencyConditions": [
-																				"Succeeded"
-																			]
-																		}
-																	],
-																	"policy": {
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"pipeline": {
-																			"referenceName": "CopyERStaging-To-ADLS-OneFile",
-																			"type": "PipelineReference"
-																		},
-																		"waitOnCompletion": true,
-																		"parameters": {
-																			"Directory": "cntelasticrun",
-																			"Folder": "Sales",
-																			"FileName": {
-																				"value": "@activity('GetFileList').output.itemName",
-																				"type": "Expression"
-																			}
-																		}
-																	}
-																},
-																{
-																	"name": "DeleteERStagingOneFile_Sales",
-																	"type": "ExecutePipeline",
-																	"dependsOn": [
-																		{
-																			"activity": "CopyERStaging-To-ADLS-OneFile_copy1",
-																			"dependencyConditions": [
-																				"Succeeded"
-																			]
-																		}
-																	],
-																	"policy": {
-																		"secureInput": false
-																	},
-																	"userProperties": [],
-																	"typeProperties": {
-																		"pipeline": {
-																			"referenceName": "DeleteERStagingOneFile",
-																			"type": "PipelineReference"
-																		},
-																		"waitOnCompletion": true,
-																		"parameters": {
-																			"FileName": {
-																				"value": "@activity('GetFileList').output.itemName",
-																				"type": "Expression"
-																			}
-																		}
-																	}
-																}
-															]
-														}
-													]
-												}
-											},
-											{
-												"name": "SpERFileImportLog_Start",
-												"type": "SqlServerStoredProcedure",
-												"dependsOn": [],
-												"policy": {
-													"timeout": "7.00:00:00",
-													"retry": 0,
-													"retryIntervalInSeconds": 30,
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"storedProcedureName": "[[dbo].[SpERFileImportLog]",
-													"storedProcedureParameters": {
-														"DataDate": {
-															"value": {
-																"value": "@item().DataDate",
-																"type": "Expression"
-															},
-															"type": "DateTime"
-														},
-														"FileID": {
-															"value": {
-																"value": "@item().FileID",
-																"type": "Expression"
-															},
-															"type": "Int32"
-														},
-														"flgStartStop": {
-															"value": "1",
-															"type": "Byte"
-														}
-													}
-												},
-												"linkedServiceName": {
-													"referenceName": "Dev_DataFoundationDB",
-													"type": "LinkedServiceReference"
-												}
-											},
-											{
-												"name": "SpERFileImportLog_End",
-												"type": "SqlServerStoredProcedure",
-												"dependsOn": [
-													{
-														"activity": "IfFileFound",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"policy": {
-													"timeout": "7.00:00:00",
-													"retry": 0,
-													"retryIntervalInSeconds": 30,
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"storedProcedureName": "[[dbo].[SpERFileImportLog]",
-													"storedProcedureParameters": {
-														"DataDate": {
-															"value": {
-																"value": "@item().DataDate",
-																"type": "Expression"
-															},
-															"type": "DateTime"
-														},
-														"FileID": {
-															"value": {
-																"value": "@item().FileID",
-																"type": "Expression"
-															},
-															"type": "Int32"
-														},
-														"flgStartStop": {
-															"value": "2",
-															"type": "Byte"
-														}
-													}
-												},
-												"linkedServiceName": {
-													"referenceName": "Dev_DataFoundationDB",
-													"type": "LinkedServiceReference"
-												}
-											}
-										]
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "V2 Pipelines"

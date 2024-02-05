@@ -13,6 +13,459 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/SUBD-To-DB_Temp')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Copy file data from Staging to DB",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "DS_SubdFolderpath",
+								"type": "DatasetReference",
+								"parameters": {
+									"Folder": "SBD",
+									"Container": "smartbasketcontainer"
+								}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@contains(string(item().name),'MST')",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Copy SubD MPG Data",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "ExcelSource",
+														"additionalColumns": [
+															{
+																"name": "Filename",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "LastModifiedDatetime",
+																"value": {
+																	"value": "@addminutes(utcnow(),330)",
+																	"type": "Expression"
+																}
+															}
+														],
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"enablePartitionDiscovery": false
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														}
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"dataIntegrationUnits": 2,
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "SBD Name",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sbd_name",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Distributor Code",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "distributor_code",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Branch Code",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branch_code",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "DS_SubD_Excel",
+														"type": "DatasetReference",
+														"parameters": {
+															"Filename": {
+																"value": "@item().name",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_SubD_ttmpRawLEAPTAS_SBDMPG_HistoryData_table",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "Copy SubD MST Data",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "ExcelSource",
+														"additionalColumns": [
+															{
+																"name": "Filename",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "LastModifiedDatetime",
+																"value": {
+																	"value": "@addminutes(utcnow(),330)",
+																	"type": "Expression"
+																}
+															}
+														],
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"enablePartitionDiscovery": false
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														}
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"dataIntegrationUnits": 2,
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "SBD Name",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sbd_name",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Channel Code",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel_code",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Channel Name",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel_name",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Group Code",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "group_code",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "SBF Code",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sbf_code",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "SBF Name",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sbf_name",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "MOQ",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "moq",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Effective From",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "effective_from",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Effective To",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "effective_to",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Is Base",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "is_base",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "DS_SubD_Excel",
+														"type": "DatasetReference",
+														"parameters": {
+															"Filename": {
+																"value": "@item().name",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_SubD_tmpRawLEAPTAS_SBDMTR_HistoryData_table",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-01-04T16:41:12Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Salesdetail_Anuj')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -8989,446 +9442,6 @@
 				},
 				"folder": {
 					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/TestWinITDRCPFileLoad')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "GetDRCPFileDetails",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpGetDRCPFileDetails_Single]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "Checkfiles-Cloud1",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "GetDRCPFileDetails",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetDRCPFileDetails').output.value\n",
-								"type": "Expression"
-							},
-							"isSequential": true,
-							"activities": [
-								{
-									"name": "GetFileList-Cloud1",
-									"type": "GetMetadata",
-									"dependsOn": [
-										{
-											"activity": "SpFileImportLog_Start",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"dataset": {
-											"referenceName": "DS_WINIT_DRCP",
-											"type": "DatasetReference",
-											"parameters": {
-												"Filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										},
-										"fieldList": [
-											"exists",
-											"itemName",
-											"lastModified",
-											"itemType"
-										],
-										"storeSettings": {
-											"type": "AzureBlobStorageReadSettings",
-											"recursive": true,
-											"enablePartitionDiscovery": false
-										},
-										"formatSettings": {
-											"type": "DelimitedTextReadSettings"
-										}
-									}
-								},
-								{
-									"name": "If File Exists-Cloud1",
-									"type": "IfCondition",
-									"dependsOn": [
-										{
-											"activity": "GetFileList-Cloud1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@activity('GetFileList-Cloud1').output.exists",
-											"type": "Expression"
-										},
-										"ifTrueActivities": [
-											{
-												"name": "Copy DRCPData",
-												"type": "Copy",
-												"dependsOn": [],
-												"policy": {
-													"timeout": "7.00:00:00",
-													"retry": 0,
-													"retryIntervalInSeconds": 30,
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"source": {
-														"type": "DelimitedTextSource",
-														"additionalColumns": [
-															{
-																"name": "Filename",
-																"value": {
-																	"value": "@item().name",
-																	"type": "Expression"
-																}
-															},
-															{
-																"name": "LastModifiedDatetime",
-																"value": {
-																	"value": "@addminutes(utcnow(),330)",
-																	"type": "Expression"
-																}
-															}
-														],
-														"storeSettings": {
-															"type": "AzureBlobStorageReadSettings",
-															"recursive": true,
-															"enablePartitionDiscovery": false
-														},
-														"formatSettings": {
-															"type": "DelimitedTextReadSettings"
-														}
-													},
-													"sink": {
-														"type": "SqlDWSink",
-														"allowPolyBase": true,
-														"polyBaseSettings": {
-															"rejectValue": 0,
-															"rejectType": "value",
-															"useTypeDefault": true
-														},
-														"disableMetricsCollection": false
-													},
-													"enableStaging": true,
-													"stagingSettings": {
-														"linkedServiceName": {
-															"referenceName": "DFPolybaseStagingStorageLink",
-															"type": "LinkedServiceReference"
-														},
-														"path": "polybasestaging"
-													},
-													"translator": {
-														"type": "TabularTranslator",
-														"mappings": [
-															{
-																"source": {
-																	"name": "BranchCode",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "BranchCode",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "SubDCode",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "SubDCode",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "SubDName",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "SubDName",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "VisitDate",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "VisitDate",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "RouteCode",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "RouteCode",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "RouteName",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "RouteName",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "RetailerCode",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "RetailerCode",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "RetailerName",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "RetailerName",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "Channel",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "Channel",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "CustTypeName",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "CustTypeName",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "DSECode",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "DSECode",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "DSEName",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "DSEName",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "STLCode",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "STLCode",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "Filename",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "FileName",
-																	"type": "String"
-																}
-															},
-															{
-																"source": {
-																	"name": "LastModifiedDatetime",
-																	"type": "String"
-																},
-																"sink": {
-																	"name": "LastModifiedDatetime",
-																	"type": "String"
-																}
-															}
-														]
-													}
-												},
-												"inputs": [
-													{
-														"referenceName": "DS_WINIT_DRCP",
-														"type": "DatasetReference",
-														"parameters": {
-															"Filename": {
-																"value": "@item().name",
-																"type": "Expression"
-															}
-														}
-													}
-												],
-												"outputs": [
-													{
-														"referenceName": "DS_DF_tmpRawWinIT_DRCP",
-														"type": "DatasetReference",
-														"parameters": {}
-													}
-												]
-											}
-										]
-									}
-								},
-								{
-									"name": "SpFileImportLog_Start",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[SpDRCPFileImportLog]",
-										"storedProcedureParameters": {
-											"DataDate": {
-												"value": {
-													"value": "@item().DataDate",
-													"type": "Expression"
-												},
-												"type": "DateTime"
-											},
-											"flgStartStop": {
-												"value": "1",
-												"type": "Byte"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "SpFileImportLog_End",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "If File Exists-Cloud1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[SpDRCPFileImportLog]",
-										"storedProcedureParameters": {
-											"DataDate": {
-												"value": {
-													"value": "@item().DataDate",
-													"type": "Expression"
-												},
-												"type": "DateTime"
-											},
-											"flgStartStop": {
-												"value": "2",
-												"type": "Byte"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Other Pipelines"
 				},
 				"annotations": []
 			},
