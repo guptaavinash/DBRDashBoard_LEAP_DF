@@ -1087,37 +1087,11 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "SpMonthStartProcessingCheck",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpMonthStartProcessingCheck]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnection",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "If Condition1_copy1",
-						"type": "IfCondition",
+						"name": "Until1",
+						"type": "Until",
 						"dependsOn": [
 							{
-								"activity": "SpMonthStartProcessingCheck",
+								"activity": "Until 9_05",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -1126,16 +1100,16 @@
 						"userProperties": [],
 						"typeProperties": {
 							"expression": {
-								"value": "@equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1)",
+								"value": "@bool(variables('flgCanProcessStart'))",
 								"type": "Expression"
 							},
-							"ifTrueActivities": [
+							"activities": [
 								{
-									"name": "Until1",
-									"type": "Until",
+									"name": "If Condition1",
+									"type": "IfCondition",
 									"dependsOn": [
 										{
-											"activity": "Until 9_05",
+											"activity": "SpGetAstixCubeProcessStatus",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -1144,294 +1118,144 @@
 									"userProperties": [],
 									"typeProperties": {
 										"expression": {
-											"value": "@bool(variables('flgCanProcessStart'))",
+											"value": "@and(equals(pipeline().parameters.flgcalled,1),equals(activity('SpGetAstixCubeProcessStatus').output.firstRow.cubereadytoprocess,1 ))",
 											"type": "Expression"
 										},
-										"activities": [
+										"ifTrueActivities": [
 											{
-												"name": "If Condition1",
-												"type": "IfCondition",
+												"name": "AS_CubeProcess_PCode_Sync_Fact",
+												"type": "ExecutePipeline",
 												"dependsOn": [
 													{
-														"activity": "SpGetAstixCubeProcessStatus",
+														"activity": "AS_ResumeandScale_S4_Start",
 														"dependencyConditions": [
 															"Succeeded"
 														]
 													}
 												],
+												"policy": {
+													"secureInput": false
+												},
 												"userProperties": [],
 												"typeProperties": {
-													"expression": {
-														"value": "@and(equals(pipeline().parameters.flgcalled,1),equals(activity('SpGetAstixCubeProcessStatus').output.firstRow.cubereadytoprocess,1 ))",
-														"type": "Expression"
+													"pipeline": {
+														"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
+														"type": "PipelineReference"
 													},
-													"ifTrueActivities": [
-														{
-															"name": "AS_CubeProcess_PCode_Sync_Fact",
-															"type": "ExecutePipeline",
-															"dependsOn": [
-																{
-																	"activity": "AS_ResumeandScale_S4_Start",
-																	"dependencyConditions": [
-																		"Succeeded"
-																	]
-																}
-															],
-															"policy": {
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"pipeline": {
-																	"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
-																	"type": "PipelineReference"
-																},
-																"waitOnCompletion": true,
-																"parameters": {
-																	"flgcalled": 1,
-																	"TypeID": 0,
-																	"processdate": {
-																		"value": "@utcnow()",
-																		"type": "Expression"
-																	}
-																}
-															}
-														},
-														{
-															"name": "FinalScale_V2",
-															"type": "ExecutePipeline",
-															"state": "Inactive",
-															"onInactiveMarkAs": "Succeeded",
-															"dependsOn": [
-																{
-																	"activity": "AS_CubeProcess_PCode_Sync_Fact",
-																	"dependencyConditions": [
-																		"Succeeded"
-																	]
-																}
-															],
-															"policy": {
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"pipeline": {
-																	"referenceName": "FinalScale_V2",
-																	"type": "PipelineReference"
-																},
-																"waitOnCompletion": true,
-																"parameters": {}
-															}
-														},
-														{
-															"name": "AS_ResumeandScale_S4_Start",
-															"type": "ExecutePipeline",
-															"dependsOn": [
-																{
-																	"activity": "SpAstixCubeProcessStatusUpd_Start",
-																	"dependencyConditions": [
-																		"Succeeded"
-																	]
-																}
-															],
-															"policy": {
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"pipeline": {
-																	"referenceName": "AS_ResumeandScale_S4",
-																	"type": "PipelineReference"
-																},
-																"waitOnCompletion": true,
-																"parameters": {}
-															}
-														},
-														{
-															"name": "AS_ResumeandScale_S4",
-															"type": "ExecutePipeline",
-															"state": "Inactive",
-															"onInactiveMarkAs": "Succeeded",
-															"dependsOn": [
-																{
-																	"activity": "FinalScale_V2",
-																	"dependencyConditions": [
-																		"Succeeded"
-																	]
-																}
-															],
-															"policy": {
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"pipeline": {
-																	"referenceName": "AS_ResumeandScale_S4",
-																	"type": "PipelineReference"
-																},
-																"waitOnCompletion": true,
-																"parameters": {}
-															}
-														},
-														{
-															"name": "flgCanProcessStart",
-															"type": "SetVariable",
-															"dependsOn": [
-																{
-																	"activity": "SpAstixCubeProcessStatusUpd_End",
-																	"dependencyConditions": [
-																		"Succeeded"
-																	]
-																}
-															],
-															"policy": {
-																"secureOutput": false,
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"variableName": "flgCanProcessStart",
-																"value": {
-																	"value": "@bool(1)",
-																	"type": "Expression"
-																}
-															}
-														},
-														{
-															"name": "SpAstixCubeProcessStatusUpd_Start",
-															"type": "SqlServerStoredProcedure",
-															"dependsOn": [],
-															"policy": {
-																"timeout": "0.12:00:00",
-																"retry": 0,
-																"retryIntervalInSeconds": 30,
-																"secureOutput": false,
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
-																"storedProcedureParameters": {
-																	"flgEnd": {
-																		"value": "0",
-																		"type": "Byte"
-																	},
-																	"flgStart": {
-																		"value": "1",
-																		"type": "Byte"
-																	},
-																	"TypeID": {
-																		"value": "0",
-																		"type": "Int32"
-																	}
-																}
-															},
-															"linkedServiceName": {
-																"referenceName": "DataFoundationDB",
-																"type": "LinkedServiceReference"
-															}
-														},
-														{
-															"name": "SpAstixCubeProcessStatusUpd_End",
-															"type": "SqlServerStoredProcedure",
-															"dependsOn": [
-																{
-																	"activity": "AS_ResumeandScale_S4",
-																	"dependencyConditions": [
-																		"Succeeded"
-																	]
-																}
-															],
-															"policy": {
-																"timeout": "0.12:00:00",
-																"retry": 0,
-																"retryIntervalInSeconds": 30,
-																"secureOutput": false,
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
-																"storedProcedureParameters": {
-																	"flgEnd": {
-																		"value": "1",
-																		"type": "Byte"
-																	},
-																	"flgStart": {
-																		"value": "1",
-																		"type": "Byte"
-																	},
-																	"TypeID": {
-																		"value": "0",
-																		"type": "Int32"
-																	}
-																}
-															},
-															"linkedServiceName": {
-																"referenceName": "DataFoundationDB",
-																"type": "LinkedServiceReference"
-															}
+													"waitOnCompletion": true,
+													"parameters": {
+														"flgcalled": 1,
+														"TypeID": 0,
+														"processdate": {
+															"value": "@utcnow()",
+															"type": "Expression"
 														}
-													]
+													}
 												}
 											},
 											{
-												"name": "If Condition2",
-												"type": "IfCondition",
+												"name": "FinalScale_V2",
+												"type": "ExecutePipeline",
+												"state": "Inactive",
+												"onInactiveMarkAs": "Succeeded",
 												"dependsOn": [
 													{
-														"activity": "If Condition1",
+														"activity": "AS_CubeProcess_PCode_Sync_Fact",
 														"dependencyConditions": [
 															"Succeeded"
 														]
 													}
 												],
+												"policy": {
+													"secureInput": false
+												},
 												"userProperties": [],
 												"typeProperties": {
-													"expression": {
-														"value": "@equals(pipeline().parameters.flgcalled,0)",
-														"type": "Expression"
+													"pipeline": {
+														"referenceName": "FinalScale_V2",
+														"type": "PipelineReference"
 													},
-													"ifTrueActivities": [
-														{
-															"name": "flgCanProcessStart-1",
-															"type": "SetVariable",
-															"dependsOn": [],
-															"policy": {
-																"secureOutput": false,
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"variableName": "flgCanProcessStart",
-																"value": {
-																	"value": "@bool(1)",
-																	"type": "Expression"
-																}
-															}
-														}
-													]
+													"waitOnCompletion": true,
+													"parameters": {}
 												}
 											},
 											{
-												"name": "Wait1",
-												"type": "Wait",
+												"name": "AS_ResumeandScale_S4_Start",
+												"type": "ExecutePipeline",
 												"dependsOn": [
 													{
-														"activity": "If Condition2",
+														"activity": "SpAstixCubeProcessStatusUpd_Start",
 														"dependencyConditions": [
 															"Succeeded"
 														]
 													}
 												],
+												"policy": {
+													"secureInput": false
+												},
 												"userProperties": [],
 												"typeProperties": {
-													"waitTimeInSeconds": 300
+													"pipeline": {
+														"referenceName": "AS_ResumeandScale_S4",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {}
 												}
 											},
 											{
-												"name": "SpGetAstixCubeProcessStatus",
-												"type": "Lookup",
+												"name": "AS_ResumeandScale_S4",
+												"type": "ExecutePipeline",
+												"state": "Inactive",
+												"onInactiveMarkAs": "Succeeded",
+												"dependsOn": [
+													{
+														"activity": "FinalScale_V2",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "AS_ResumeandScale_S4",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {}
+												}
+											},
+											{
+												"name": "flgCanProcessStart",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "SpAstixCubeProcessStatusUpd_End",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgCanProcessStart",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_Start",
+												"type": "SqlServerStoredProcedure",
 												"dependsOn": [],
 												"policy": {
 													"timeout": "0.12:00:00",
@@ -1442,87 +1266,216 @@
 												},
 												"userProperties": [],
 												"typeProperties": {
-													"source": {
-														"type": "SqlDWSource",
-														"sqlReaderStoredProcedureName": "[[dbo].[SpGetAstixCubeProcessStatus]",
-														"storedProcedureParameters": {
-															"TypeID": {
-																"type": "Int32",
-																"value": "0"
-															}
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "0",
+															"type": "Byte"
 														},
-														"queryTimeout": "02:00:00",
-														"partitionOption": "None"
-													},
-													"dataset": {
-														"referenceName": "DataFoundationConnection",
-														"type": "DatasetReference",
-														"parameters": {}
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "0",
+															"type": "Int32"
+														}
 													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
+												}
+											},
+											{
+												"name": "SpAstixCubeProcessStatusUpd_End",
+												"type": "SqlServerStoredProcedure",
+												"dependsOn": [
+													{
+														"activity": "AS_ResumeandScale_S4",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
+													"storedProcedureParameters": {
+														"flgEnd": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"flgStart": {
+															"value": "1",
+															"type": "Byte"
+														},
+														"TypeID": {
+															"value": "0",
+															"type": "Int32"
+														}
+													}
+												},
+												"linkedServiceName": {
+													"referenceName": "DataFoundationDB",
+													"type": "LinkedServiceReference"
 												}
 											}
-										],
-										"timeout": "0.12:00:00"
+										]
 									}
 								},
 								{
-									"name": "Until 9_05",
-									"type": "Until",
+									"name": "If Condition2",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "If Condition1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(pipeline().parameters.flgcalled,0)",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "flgCanProcessStart-1",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgCanProcessStart",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [
+										{
+											"activity": "If Condition2",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 300
+									}
+								},
+								{
+									"name": "SpGetAstixCubeProcessStatus",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetAstixCubeProcessStatus]",
+											"storedProcedureParameters": {
+												"TypeID": {
+													"type": "Int32",
+													"value": "0"
+												}
+											},
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					},
+					{
+						"name": "Until 9_05",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgTimeOK'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "If Condition3",
+									"type": "IfCondition",
 									"dependsOn": [],
 									"userProperties": [],
 									"typeProperties": {
 										"expression": {
-											"value": "@bool(variables('flgTimeOK'))",
+											"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),'09:05:00')",
 											"type": "Expression"
 										},
-										"activities": [
+										"ifFalseActivities": [
 											{
-												"name": "If Condition3",
-												"type": "IfCondition",
+												"name": "Wait 5 min",
+												"type": "Wait",
 												"dependsOn": [],
 												"userProperties": [],
 												"typeProperties": {
-													"expression": {
-														"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),'09:05:00')",
-														"type": "Expression"
-													},
-													"ifFalseActivities": [
-														{
-															"name": "Wait 5 min",
-															"type": "Wait",
-															"dependsOn": [],
-															"userProperties": [],
-															"typeProperties": {
-																"waitTimeInSeconds": 300
-															}
-														}
-													],
-													"ifTrueActivities": [
-														{
-															"name": "Set variable1",
-															"type": "SetVariable",
-															"dependsOn": [],
-															"policy": {
-																"secureOutput": false,
-																"secureInput": false
-															},
-															"userProperties": [],
-															"typeProperties": {
-																"variableName": "flgTimeOK",
-																"value": {
-																	"value": "@bool(1)",
-																	"type": "Expression"
-																}
-															}
-														}
-													]
+													"waitTimeInSeconds": 300
 												}
 											}
 										],
-										"timeout": "0.12:00:00"
+										"ifTrueActivities": [
+											{
+												"name": "Set variable1",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgTimeOK",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
 									}
 								}
-							]
+							],
+							"timeout": "0.12:00:00"
 						}
 					}
 				],
