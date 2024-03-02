@@ -3,151 +3,72 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "SpMonthStartProcessingCheck",
-				"type": "Lookup",
+				"name": "Until1",
+				"type": "Until",
 				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "SqlDWSource",
-						"sqlReaderStoredProcedureName": "[dbo].[SpMonthStartProcessingCheck]",
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "DataFoundationConnection",
-						"type": "DatasetReference"
-					}
-				}
-			},
-			{
-				"name": "If Condition1_copy1",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "SpMonthStartProcessingCheck",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1)",
+						"value": "@bool(variables('flgCanProcessStart'))",
 						"type": "Expression"
 					},
-					"ifTrueActivities": [
+					"activities": [
 						{
-							"name": "Until1",
-							"type": "Until",
-							"dependsOn": [],
+							"name": "If Condition1",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Lookup1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"userProperties": [],
 							"typeProperties": {
 								"expression": {
-									"value": "@bool(variables('flgCanProcessStart'))",
+									"value": "@equals(int(activity('Lookup1').output.firstRow.PGCubeProcessStatus),1)",
 									"type": "Expression"
 								},
-								"activities": [
+								"ifFalseActivities": [
 									{
-										"name": "If Condition1",
-										"type": "IfCondition",
+										"name": "Wait 5 min",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 300
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Set variable1",
+										"type": "SetVariable",
 										"dependsOn": [
 											{
-												"activity": "Lookup1",
+												"activity": "spDataHub_LoadFlag",
 												"dependencyConditions": [
 													"Succeeded"
 												]
 											}
 										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
 										"userProperties": [],
 										"typeProperties": {
-											"expression": {
-												"value": "@equals(int(activity('Lookup1').output.firstRow.PGCubeProcessStatus),1)",
+											"variableName": "flgCanProcessStart",
+											"value": {
+												"value": "@bool(1)",
 												"type": "Expression"
-											},
-											"ifFalseActivities": [
-												{
-													"name": "Wait 5 min",
-													"type": "Wait",
-													"dependsOn": [],
-													"userProperties": [],
-													"typeProperties": {
-														"waitTimeInSeconds": 300
-													}
-												}
-											],
-											"ifTrueActivities": [
-												{
-													"name": "Set variable1",
-													"type": "SetVariable",
-													"dependsOn": [
-														{
-															"activity": "spDataHub_LoadFlag",
-															"dependencyConditions": [
-																"Succeeded"
-															]
-														}
-													],
-													"policy": {
-														"secureOutput": false,
-														"secureInput": false
-													},
-													"userProperties": [],
-													"typeProperties": {
-														"variableName": "flgCanProcessStart",
-														"value": {
-															"value": "@bool(1)",
-															"type": "Expression"
-														}
-													}
-												},
-												{
-													"name": "spDataHub_LoadFlag",
-													"type": "SqlServerStoredProcedure",
-													"dependsOn": [],
-													"policy": {
-														"timeout": "0.12:00:00",
-														"retry": 0,
-														"retryIntervalInSeconds": 30,
-														"secureOutput": false,
-														"secureInput": false
-													},
-													"userProperties": [],
-													"typeProperties": {
-														"storedProcedureName": "[dbo].[spDataHub_LoadFlag]",
-														"storedProcedureParameters": {
-															"CurrentDate": {
-																"value": {
-																	"value": "@addminutes(utcnow(),330)",
-																	"type": "Expression"
-																},
-																"type": "DateTime"
-															},
-															"flgProcessCOmplete": {
-																"value": "1",
-																"type": "Byte"
-															}
-														}
-													},
-													"linkedServiceName": {
-														"referenceName": "DataFoundationDB",
-														"type": "LinkedServiceReference"
-													}
-												}
-											]
+											}
 										}
 									},
 									{
-										"name": "Lookup1",
-										"type": "Lookup",
+										"name": "spDataHub_LoadFlag",
+										"type": "SqlServerStoredProcedure",
 										"dependsOn": [],
 										"policy": {
 											"timeout": "0.12:00:00",
@@ -158,23 +79,56 @@
 										},
 										"userProperties": [],
 										"typeProperties": {
-											"source": {
-												"type": "SqlDWSource",
-												"sqlReaderStoredProcedureName": "[dbo].[SpGetPGCubeProcessStatusFinal]",
-												"queryTimeout": "02:00:00",
-												"partitionOption": "None"
-											},
-											"dataset": {
-												"referenceName": "DataFoundationConnection",
-												"type": "DatasetReference"
+											"storedProcedureName": "[dbo].[spDataHub_LoadFlag]",
+											"storedProcedureParameters": {
+												"CurrentDate": {
+													"value": {
+														"value": "@addminutes(utcnow(),330)",
+														"type": "Expression"
+													},
+													"type": "DateTime"
+												},
+												"flgProcessCOmplete": {
+													"value": "1",
+													"type": "Byte"
+												}
 											}
+										},
+										"linkedServiceName": {
+											"referenceName": "DataFoundationDB",
+											"type": "LinkedServiceReference"
 										}
 									}
-								],
-								"timeout": "0.12:00:00"
+								]
+							}
+						},
+						{
+							"name": "Lookup1",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": "[dbo].[SpGetPGCubeProcessStatusFinal]",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "DataFoundationConnection",
+									"type": "DatasetReference"
+								}
 							}
 						}
-					]
+					],
+					"timeout": "0.12:00:00"
 				}
 			}
 		],
