@@ -1,0 +1,102 @@
+{
+	"name": "FinalCubeProcessing_Container",
+	"properties": {
+		"activities": [
+			{
+				"name": "SpMonthStartProcessingCheck",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[dbo].[SpMonthStartProcessingCheck]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DataFoundationConnection",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "SpMonthStartProcessingCheck",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "FinalCubeProcessing",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "FinalCubeProcessing",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"DMinusOneDate": {
+										"value": "@pipeline().parameters.DMinusOneDate",
+										"type": "Expression"
+									},
+									"flgcalled": {
+										"value": "@pipeline().parameters.flgcalled",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"DMinusOneDate": {
+				"type": "string"
+			},
+			"flgcalled": {
+				"type": "int",
+				"defaultValue": 1
+			}
+		},
+		"variables": {
+			"flgCanProcessStart": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"flgTimeOK": {
+				"type": "Boolean",
+				"defaultValue": false
+			}
+		},
+		"folder": {
+			"name": "V2 Pipelines"
+		},
+		"annotations": []
+	}
+}
