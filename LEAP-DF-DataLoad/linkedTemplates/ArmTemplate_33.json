@@ -13,6 +13,419 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level3')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFoldername",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Container",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFoldername",
+						"description": "Iterate each folder and find the folder or file inside it.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFolder",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFolder').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "inner folder loop",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "MoveADLS-To-dfdatafoundation_Level4",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceStore_Container": {
+												"value": "@pipeline().parameters.SourceStore_Container",
+												"type": "Expression"
+											},
+											"SourceStore_Directory": {
+												"value": "@concat(pipeline().parameters.SourceStore_Directory, item().name ,'/')\n\n",
+												"type": "Expression"
+											},
+											"DestinationStore_Container": {
+												"value": "@pipeline().parameters.DestinationStore_Container",
+												"type": "Expression"
+											},
+											"DestinationStore_Directory": {
+												"value": "@pipeline().parameters.DestinationStore_Directory",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFolder",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFoldername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFoldername').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'Folder')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Container": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Container": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:01Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PCode_Maximus_Job')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpMonthStartProcessingCheck",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpMonthStartProcessingCheck]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "If Condition1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "SpMonthStartProcessingCheck",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "Maximus Rurban Split",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Wait1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Maximus Rurban Split",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								},
+								{
+									"name": "Wait1",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 1
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DMinus1Date": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_ProcessDate",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": "SELECT ProcessDate FROM tmpDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_DF_NC_RouteCalendar_SUBD",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachDates",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_ProcessDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_ProcessDate').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "SingleFileCopy",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "SpDeleteOldtmpleapdata",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SingleFileCopy",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Container": "cntleap",
+											"Folder": {
+												"value": "@concat('/', formatDateTime(item().ProcessDate, 'yyyy'), '/', formatDateTime(item().ProcessDate, 'MM'), '/', formatDateTime(item().ProcessDate, 'dd'), '/')\n",
+												"type": "Expression"
+											},
+											"ProcessDate": {
+												"value": "@item().ProcessDate",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "SpDeleteOldtmpleapdata",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpDeleteDatafromtmpleaptable]"
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "spLoadLeapDPSRIndividualProcess",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SingleFileCopy",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spLoadLeapDPSRIndividualProcess]",
+										"storedProcedureParameters": {
+											"dt": {
+												"value": {
+													"value": "@item().ProcessDate",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_CCCR')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -727,1715 +1140,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/CopyNCS_ASTIX_To_CDL')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "NC_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "BRANCHCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "SUBDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "SUBDNAME",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 5
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_Master_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_Sales_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SUBDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "DSECODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "INVNO",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "INVDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "SKUCCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 6
-										}
-									},
-									{
-										"source": {
-											"name": "SKUDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 7
-										}
-									},
-									{
-										"source": {
-											"name": "SKUEANCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 8
-										}
-									},
-									{
-										"source": {
-											"name": "BATCHCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 9
-										}
-									},
-									{
-										"source": {
-											"name": "QTY",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 10
-										}
-									},
-									{
-										"source": {
-											"name": "GROSSAMOUNT",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 11
-										}
-									},
-									{
-										"source": {
-											"name": "TAXAMOUNT",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 12
-										}
-									},
-									{
-										"source": {
-											"name": "INITDISC",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 13
-										}
-									},
-									{
-										"source": {
-											"name": "LINEDISC",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 14
-										}
-									},
-									{
-										"source": {
-											"name": "NETAMOUNT",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 15
-										}
-									},
-									{
-										"source": {
-											"name": "INVREF",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 16
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 17
-										}
-									},
-									{
-										"source": {
-											"name": "UPC",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 18
-										}
-									},
-									{
-										"source": {
-											"name": "RETAILING",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 19
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 20
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_Sales_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_Sales_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_SRN_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SUBDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "DSECODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "SRNNO",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "INVNO",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "SRNDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 6
-										}
-									},
-									{
-										"source": {
-											"name": "SKUCCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 7
-										}
-									},
-									{
-										"source": {
-											"name": "SKUDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 8
-										}
-									},
-									{
-										"source": {
-											"name": "SKUEANCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 9
-										}
-									},
-									{
-										"source": {
-											"name": "BATCHCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 10
-										}
-									},
-									{
-										"source": {
-											"name": "QTY",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 11
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 12
-										}
-									},
-									{
-										"source": {
-											"name": "GROSSINVAMT",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 13
-										}
-									},
-									{
-										"source": {
-											"name": "NETINVAMT",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 14
-										}
-									},
-									{
-										"source": {
-											"name": "LINEDISC",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 15
-										}
-									},
-									{
-										"source": {
-											"name": "INITDISC",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 16
-										}
-									},
-									{
-										"source": {
-											"name": "TAXES",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 17
-										}
-									},
-									{
-										"source": {
-											"name": "UPC",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 18
-										}
-									},
-									{
-										"source": {
-											"name": "RETAILING",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 19
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 20
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_SRN_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_SRN_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_AR_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SUBDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "DATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "AR",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 6
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_AR_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_AR_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_FocusHitRate_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "DistributorBranchCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "MONTH",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "Year",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "SubDistributorCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "SellerCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "SellerRoute",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 6
-										}
-									},
-									{
-										"source": {
-											"name": "SellerSector",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 7
-										}
-									},
-									{
-										"source": {
-											"name": "Brand",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 8
-										}
-									},
-									{
-										"source": {
-											"name": "Category",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 9
-										}
-									},
-									{
-										"source": {
-											"name": "BrandInitiativeCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 10
-										}
-									},
-									{
-										"source": {
-											"name": "BrandInitiativeName",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 11
-										}
-									},
-									{
-										"source": {
-											"name": "LocalSubchannelCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 12
-										}
-									},
-									{
-										"source": {
-											"name": "CustomerType",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 13
-										}
-									},
-									{
-										"source": {
-											"name": "NormWiseTargetPer",
-											"type": "Decimal"
-										},
-										"sink": {
-											"type": "Decimal",
-											"ordinal": 14
-										}
-									},
-									{
-										"source": {
-											"name": "DstrbnTargetPer",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 15
-										}
-									},
-									{
-										"source": {
-											"name": "StoreCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 16
-										}
-									},
-									{
-										"source": {
-											"name": "StoreFocusBrandOpportunity",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 17
-										}
-									},
-									{
-										"source": {
-											"name": "StoreFocusBrandHit",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 18
-										}
-									},
-									{
-										"source": {
-											"name": "StoreGap",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 19
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 20
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 21
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_FocusHitRate_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": "cntsubdstaging",
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_FocusHitRate_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_RetailingTarget_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SubDCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "SellerCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "CustomerCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "RetailingTarget",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "SelectedDate",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 6
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_RetailingTarget_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_RetailingTarget_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_RouteCalendar_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SubDCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "SellerCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "RouteNumber",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "CustomerCode",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "visitDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "SectorCode",
-											"type": "Int32"
-										},
-										"sink": {
-											"type": "Int32",
-											"ordinal": 6
-										}
-									},
-									{
-										"source": {
-											"name": "SelectedDate",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 7
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 8
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_RouteCalendar_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_RouteCalender_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "NC_RETAILER_SUBD",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"additionalColumns": [
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "SUBDCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 1
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTCODE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 2
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTNAME",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 3
-										}
-									},
-									{
-										"source": {
-											"name": "CHANNEL",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 4
-										}
-									},
-									{
-										"source": {
-											"name": "DSE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 5
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTTYPE",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 6
-										}
-									},
-									{
-										"source": {
-											"name": "TOWN",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 7
-										}
-									},
-									{
-										"source": {
-											"name": "TOWNCLASS",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 8
-										}
-									},
-									{
-										"source": {
-											"name": "AREA",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 9
-										}
-									},
-									{
-										"source": {
-											"name": "COVERAGESTS",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 10
-										}
-									},
-									{
-										"source": {
-											"name": "DATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 11
-										}
-									},
-									{
-										"source": {
-											"name": "SELECTEDDATE",
-											"type": "DateTime"
-										},
-										"sink": {
-											"type": "DateTime",
-											"ordinal": 12
-										}
-									},
-									{
-										"source": {
-											"name": "CUSTCLASS",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 13
-										}
-									},
-									{
-										"source": {
-											"name": "STATUS",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 14
-										}
-									},
-									{
-										"source": {
-											"name": "MRAccCde",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 15
-										}
-									},
-									{
-										"source": {
-											"name": "DSECde",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 16
-										}
-									},
-									{
-										"source": {
-											"name": "Latitude",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 17
-										}
-									},
-									{
-										"source": {
-											"name": "Longitude",
-											"type": "String"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 18
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime"
-										},
-										"sink": {
-											"type": "String",
-											"ordinal": 19
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_NC_RETAILER_SUBD",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "cntsubdstaging",
-										"type": "Expression"
-									},
-									"Directory": null,
-									"Filename": {
-										"value": "@{concat('NC_SUBD_Retailer_',convertFromUtc(pipeline().parameters.DataProcessDate, 'India Standard Time','yyyymmdd'),'.csv')}\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "NCS"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/AfterDF-To-TasTransfer')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -2861,7 +1565,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing_V2')]",
@@ -3468,7 +2174,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_03Jan2024')]",
@@ -3656,7 +2364,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_04Jun2023')]",
@@ -4376,7 +3086,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_08Jul2023')]",
@@ -4960,452 +3672,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_09Feb2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "AS_ResumeandScale_S9",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_ResumeandScale",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DW_Resume_Scale DW200_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_ResumeandScale_S9",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "DCC_Processing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Resume_Scale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"ScaleVal": "DW200c",
-								"flgcalled": 0
-							}
-						}
-					},
-					{
-						"name": "DCC",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "PCode_Maximus_Job",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "PCode_Maximus_Job",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "PCode_Maximus_Job",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinus1Date": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "spAS_PopulateFactTables-DF_PCode",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "DW_Resume_Scale DW200_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spAS_PopulateFactTables_PCode]",
-							"storedProcedureParameters": {
-								"DMinus1Date": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-										"type": "Expression"
-									},
-									"type": "DateTime"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "AS_CubeProcess_PCode_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spAS_PopulateFactTables-DF_PCode",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Pcode_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DCC_Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalScale_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "AS_CubeProcess_PCode_Sync_Fact",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalScale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_09Jun2023')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "DCC",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DCC_Processing",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "DCC_Processing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spDataHubDataPopulation",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DCC_Processing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalCubeProcessing",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalCubeProcessing",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinusOneDate": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								},
-								"flgcalled": 0
-							}
-						}
-					},
-					{
-						"name": "spDataHubDataPopulation",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataHubDataPopulation]"
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PCode_Maximus_Job')]"
+			]
 		}
 	]
 }
