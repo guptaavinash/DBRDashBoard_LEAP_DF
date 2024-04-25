@@ -67,6 +67,114 @@
 						"Step": "1"
 					}
 				}
+			},
+			{
+				"name": "PurdDataFileGeneration_Temp_Anyday",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "LeapDataLoadingCloud1_25Apr2024",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "LeapDataLoadingCloud2_25Apr2024",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "LeapDataLoadingCloud3_25Apr2024",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PurdDataFileGeneration_Temp_Anyday",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "spAPI_PopulateExtractIDCMP-DF",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "PurdDataFileGeneration_Temp_Anyday",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[spAPI_PopulateExtractIDCMP]"
+				},
+				"linkedServiceName": {
+					"referenceName": "Dev_DataFoundationDB",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "MasterDataForAPI",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "spAPI_PopulateExtractIDCMP-DF",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "MasterDataForAPI",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "APIDataFileGeneration",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "MasterDataForAPI",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "APIDataFileGeneration",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
 			}
 		],
 		"folder": {
