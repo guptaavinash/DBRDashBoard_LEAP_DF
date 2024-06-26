@@ -13,6 +13,1054 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/LoadFile-ADLS-To-DB_DRCP')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "LoadFile-ADLS-To-DB",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSDataset_Copy",
+								"type": "DatasetReference",
+								"parameters": {
+									"folder": {
+										"value": "@pipeline().parameters.Folder",
+										"type": "Expression"
+									},
+									"directory": {
+										"value": "@pipeline().parameters.Container",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems",
+								"lastModified",
+								"itemName"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "DRCP_Could1",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@bool(startswith(item().name,'DRCP_cloud01_'))",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "DRCP_Cloud1",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"additionalColumns": [
+															{
+																"name": "Filename",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "Lastmodifieddatetime",
+																"value": {
+																	"value": "@addminutes(utcnow(),330)",
+																	"type": "Expression"
+																}
+															}
+														],
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"wildcardFileName": "DRCP_cloud01_*",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": "TRUNCATE TABLE tmpRawLEAPTAS_DRCP_Cloud1",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "branchcode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchcode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "branchname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailername",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailername",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercontact",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercontact",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "stlname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "stlname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeltype",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeltype",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeldescription",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeldescription",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "sectorname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sectorname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "latitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "latitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "longitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "longitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "visit_date",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "visit_date",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Lastmodifieddatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ADLSCSVDataSource_Folder",
+														"type": "DatasetReference",
+														"parameters": {
+															"Container": {
+																"value": "@pipeline().parameters.Container",
+																"type": "Expression"
+															},
+															"Directory": {
+																"value": "@pipeline().parameters.Folder",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_DRCP_Cloud1",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											}
+										]
+									}
+								},
+								{
+									"name": "DRCP_Could2",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "DRCP_Could1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@bool(startswith(item().name,'DRCP_cloud02_'))",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "DRCP_Cloud2",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"additionalColumns": [
+															{
+																"name": "Filename",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "Lastmodifieddatetime",
+																"value": {
+																	"value": "@addminutes(utcnow(),330)",
+																	"type": "Expression"
+																}
+															}
+														],
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"wildcardFileName": "DRCP_cloud02_*",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": "TRUNCATE TABLE tmpRawLEAPTAS_DRCP_Cloud2",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "branchcode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchcode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "branchname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailername",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailername",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercontact",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercontact",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "stlname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "stlname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeltype",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeltype",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeldescription",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeldescription",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "sectorname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sectorname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "latitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "latitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "longitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "longitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "visit_date",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "visit_date",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Lastmodifieddatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ADLSCSVDataSource_Folder",
+														"type": "DatasetReference",
+														"parameters": {
+															"Container": {
+																"value": "@pipeline().parameters.Container",
+																"type": "Expression"
+															},
+															"Directory": {
+																"value": "@pipeline().parameters.Folder",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_DRCP_Cloud2",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											}
+										]
+									}
+								},
+								{
+									"name": "DRCP_Could3",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "DRCP_Could2",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@bool(startswith(item().name,'DRCP_cloud03_'))",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "DRCP_Cloud3",
+												"description": "Copy a file from the source store to the destination store.",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "7.00:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"additionalColumns": [
+															{
+																"name": "Filename",
+																"value": {
+																	"value": "@item().name",
+																	"type": "Expression"
+																}
+															},
+															{
+																"name": "Lastmodifieddatetime",
+																"value": {
+																	"value": "@addminutes(utcnow(),330)",
+																	"type": "Expression"
+																}
+															}
+														],
+														"storeSettings": {
+															"type": "AzureBlobStorageReadSettings",
+															"recursive": true,
+															"wildcardFileName": "DRCP_cloud03_*",
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														},
+														"recursive": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": "TRUNCATE TABLE tmpRawLEAPTAS_DRCP_Cloud3",
+														"allowPolyBase": true,
+														"polyBaseSettings": {
+															"rejectValue": 0,
+															"rejectType": "value",
+															"useTypeDefault": true
+														},
+														"disableMetricsCollection": false
+													},
+													"enableStaging": true,
+													"stagingSettings": {
+														"linkedServiceName": {
+															"referenceName": "DFPolybaseStagingStorageLink",
+															"type": "LinkedServiceReference"
+														},
+														"path": "polybasestaging"
+													},
+													"translator": {
+														"type": "TabularTranslator",
+														"mappings": [
+															{
+																"source": {
+																	"name": "branchcode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchcode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "branchname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "branchname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailername",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailername",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retaileraddress",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "retailercontact",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "retailercontact",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "stlname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "stlname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "dsename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "dsename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channel",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channel",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeltype",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeltype",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "channeldescription",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "channeldescription",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routecode",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routecode",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "routename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "routename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "sectorname",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "sectorname",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "latitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "latitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "longitude",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "longitude",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "visit_date",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "visit_date",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Filename",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "Filename",
+																	"type": "String"
+																}
+															},
+															{
+																"source": {
+																	"name": "Lastmodifieddatetime",
+																	"type": "String"
+																},
+																"sink": {
+																	"name": "LastModifiedDatetime",
+																	"type": "String"
+																}
+															}
+														]
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ADLSCSVDataSource_Folder",
+														"type": "DatasetReference",
+														"parameters": {
+															"Container": {
+																"value": "@pipeline().parameters.Container",
+																"type": "Expression"
+															},
+															"Directory": {
+																"value": "@pipeline().parameters.Folder",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "DS_DRCP_Cloud3",
+														"type": "DatasetReference",
+														"parameters": {}
+													}
+												]
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"Container": {
+						"type": "string"
+					},
+					"Folder": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LoadLeapADLS-To-DB_Channelupdate')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -45408,6 +46456,9 @@
 												"type": "AzureBlobFSReadSettings",
 												"recursive": true
 											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
 											"recursive": false
 										},
 										"sink": {
@@ -47536,2178 +48587,6 @@
 				},
 				"folder": {
 					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PepsiDataTransfer')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "ForGettingActTimeAndDistance_PG",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "DRCP_May23_C03.csv",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "RowId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "RowId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillagePop",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillagePop",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageSubDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageSubDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageState",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageState",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_Population",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_Population",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualDistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualDistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualTime",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualTime",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "flgIgnore",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgIgnore",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "ApplicationId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ApplicationId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampIns",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampIns",
-											"type": "DateTime",
-											"physicalType": "datetime2"
-										}
-									},
-									{
-										"source": {
-											"name": "StateId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "StateId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Angle",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Angle",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "flgManuallyAttempted",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgManuallyAttempted",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampUpd",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampUpd",
-											"type": "DateTime",
-											"physicalType": "datetime2"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "flgUpdatedFromExisting",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgUpdatedFromExisting",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Temp_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": "tblALLCVAndHubDBRVillageList_ForGettingActTimeAndDistance_PG.csv"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Pepsi_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblALLCVAndHubDBRVillageList_ForGettingActTimeAndDistance_PG"
-								}
-							}
-						]
-					},
-					{
-						"name": "ForGettingActTimeAndDistance",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "DRCP_May23_C03.csv",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "RowId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "RowId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillagePop",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillagePop",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageSubDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageSubDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "HUBDBR_VillageState",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "HUBDBR_VillageState",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_Population",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_Population",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualDistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualDistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualTime",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualTime",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "flgIgnore",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgIgnore",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "ApplicationId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ApplicationId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampIns",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampIns",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										}
-									},
-									{
-										"source": {
-											"name": "StateId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "StateId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Angle",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Angle",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "flgManuallyAttempted",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgManuallyAttempted",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampUpd",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampUpd",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										}
-									},
-									{
-										"source": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Temp_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": "tblALLCVAndHubDBRVillageList_ForGettingActTimeAndDistance.csv"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Pepsi_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblALLCVAndHubDBRVillageList_ForGettingActTimeAndDistance"
-								}
-							}
-						]
-					},
-					{
-						"name": "tblALLCVAndSVList_ForGettingActTimeAndDistance_PG",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "DRCP_May23_C03.csv",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "RowId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "RowId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "SV_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageState",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageState",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_Population",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_Population",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_Level",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_Level",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualDistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualDistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualTime",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualTime",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "flgIgnore",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgIgnore",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "ApplicationId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ApplicationId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampIns",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampIns",
-											"type": "DateTime",
-											"physicalType": "datetime2"
-										}
-									},
-									{
-										"source": {
-											"name": "StateId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "StateId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Angle",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Angle",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "flgManuallyAttempted",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgManuallyAttempted",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampUpd",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampUpd",
-											"type": "DateTime",
-											"physicalType": "datetime2"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "flgUpdatedFromExisting",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgUpdatedFromExisting",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Temp_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": "tblALLCVAndSVList_ForGettingActTimeAndDistance_PG.csv"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Pepsi_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblALLCVAndSVList_ForGettingActTimeAndDistance_PG"
-								}
-							}
-						]
-					},
-					{
-						"name": "tblALLCVAndSVList_ForGettingActTimeAndDistance",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "DRCP_May23_C03.csv",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "RowId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "RowId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "SV_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageState",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageState",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LatCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LatCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LongCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LongCode",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_Population",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_Population",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_Level",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_Level",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageName",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_SubDistrict",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_District",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_State",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualDistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualDistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualTime",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualTime",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "flgIgnore",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgIgnore",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "ApplicationId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ApplicationId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampIns",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampIns",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										}
-									},
-									{
-										"source": {
-											"name": "StateId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "StateId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "Angle",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Angle",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "DistanceBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "DistanceBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeBucketId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeBucketId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "flgManuallyAttempted",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgManuallyAttempted",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									},
-									{
-										"source": {
-											"name": "SV_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "SV_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageCode",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Temp_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": "tblALLCVAndSVList_ForGettingActTimeAndDistance.csv"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Pepsi_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblALLCVAndSVList_ForGettingActTimeAndDistance"
-								}
-							}
-						]
-					},
-					{
-						"name": "tblVillageCombinationToGetActualTimeAndDistance",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "DRCP_May23_C03.csv",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "RowId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "RowId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageId_1",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageId_1",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LatCode_1",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LatCode_1",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LongCode_1",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LongCode_1",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageId_2",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageId_2",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LatCode_2",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LatCode_2",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "CV_LongCode_2",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_LongCode_2",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 18,
-											"precision": 22
-										}
-									},
-									{
-										"source": {
-											"name": "RadialDistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "RadialDistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualDistanceInM",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualDistanceInM",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualTime",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualTime",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "flgIgnore",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgIgnore",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "ApplicationId",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ApplicationId",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampIns",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampIns",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageCode_1",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageCode_1",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CV_VillageCode_2",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CV_VillageCode_2",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "TimeStampUpd",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "TimeStampUpd",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										}
-									},
-									{
-										"source": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "APIKeyUsed",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "ActualTimeInSec",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ActualTimeInSec",
-											"type": "Double",
-											"physicalType": "float"
-										}
-									},
-									{
-										"source": {
-											"name": "flgManullayEntered",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "flgManullayEntered",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Temp_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": "tblVillageCombinationToGetActualTimeAndDistance.csv"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Pepsi_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblVillageCombinationToGetActualTimeAndDistance"
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Other Pipelines"
 				},
 				"annotations": []
 			},
