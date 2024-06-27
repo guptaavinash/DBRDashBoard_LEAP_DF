@@ -46370,6 +46370,415 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-CDLStaging')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Location",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud1_Files",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud1').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyFile_Cloud1",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSDataset_Onefile",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"directory": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_File_V2_Dynamic",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": "leapcdlinput",
+												"folder": "Cloud1"
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud1",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),contains(item().name,'cloud01'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud2",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),contains(item().name,'cloud02'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud2_Files",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud2').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyFile_Cloud2",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSDataset_Onefile",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"directory": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_File_V2_Dynamic",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": "leapcdlinput",
+												"folder": "Cloud2"
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud3",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),contains(item().name,'cloud03'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud3_Files",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud3').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyFile_Cloud3",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSDataset_Onefile",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"directory": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_File_V2_Dynamic",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": "leapcdlinput",
+												"folder": "Cloud3"
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Location": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Location": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-Staging')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -46455,9 +46864,6 @@
 											"storeSettings": {
 												"type": "AzureBlobFSReadSettings",
 												"recursive": true
-											},
-											"formatSettings": {
-												"type": "BinaryReadSettings"
 											},
 											"recursive": false
 										},
@@ -47685,905 +48091,6 @@
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Only_COHPOINT')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "COHPOINT_Cloud1",
-						"description": "Copy a file from the source store to the destination store.",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "SpTruncateCOHPOINTTemptable",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "@concat('COHPOINT_cloud0',variables('Cloud1'),'_', formatDateTime(pipeline().TriggerTime, 'yyyy'), formatDateTime(pipeline().TriggerTime, 'MMM'), formatDateTime(pipeline().TriggerTime, 'dd'), '.csv')",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"wildcardFileName": {
-										"value": "@concat('COHPOINT_cloud0',variables('Cloud1'),'_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '.csv')",
-										"type": "Expression"
-									},
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								},
-								"recursive": false
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "branch_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "branch_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "branch_location",
-											"type": "String"
-										},
-										"sink": {
-											"name": "branch_location",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "dse_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "dse_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "dse_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "dse_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "sector",
-											"type": "String"
-										},
-										"sink": {
-											"name": "sector",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_type_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_type_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "coh_month",
-											"type": "String"
-										},
-										"sink": {
-											"name": "coh_month",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "coh_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "coh_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "fb_type",
-											"type": "String"
-										},
-										"sink": {
-											"name": "fb_type",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "norm_wise_target",
-											"type": "String"
-										},
-										"sink": {
-											"name": "norm_wise_target",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "target_retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "target_retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "qualified_retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "qualified_retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "distribution_target",
-											"type": "String"
-										},
-										"sink": {
-											"name": "distribution_target",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "distribution_actual_percentage",
-											"type": "String"
-										},
-										"sink": {
-											"name": "distribution_actual_percentage",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Filename",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Filename",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "DateTime"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Staging_V2_Cloud1",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_TASDestination_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": {
-										"value": "tmpRawLEAPTAS_COHPOINT",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "COHPOINT_Cloud2",
-						"description": "Copy a file from the source store to the destination store.",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "SpTruncateCOHPOINTTemptable",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "@concat('COHPOINT_cloud0',variables('Cloud2'),'_', formatDateTime(pipeline().TriggerTime, 'yyyy'), formatDateTime(pipeline().TriggerTime, 'MMM'), formatDateTime(pipeline().TriggerTime, 'dd'), '.csv')",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"wildcardFileName": {
-										"value": "@concat('COHPOINT_cloud0',variables('Cloud2'),'_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '.csv')",
-										"type": "Expression"
-									},
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								},
-								"recursive": false
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "branch_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "branch_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "branch_location",
-											"type": "String"
-										},
-										"sink": {
-											"name": "branch_location",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "dse_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "dse_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "dse_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "dse_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "sector",
-											"type": "String"
-										},
-										"sink": {
-											"name": "sector",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_type_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_type_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "coh_month",
-											"type": "String"
-										},
-										"sink": {
-											"name": "coh_month",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "coh_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "coh_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "fb_type",
-											"type": "String"
-										},
-										"sink": {
-											"name": "fb_type",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "norm_wise_target",
-											"type": "String"
-										},
-										"sink": {
-											"name": "norm_wise_target",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "target_retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "target_retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "qualified_retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "qualified_retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "distribution_target",
-											"type": "String"
-										},
-										"sink": {
-											"name": "distribution_target",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "distribution_actual_percentage",
-											"type": "String"
-										},
-										"sink": {
-											"name": "distribution_actual_percentage",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Filename",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Filename",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "DateTime"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Staging_V2_Cloud2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_TASDestination_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": {
-										"value": "tmpRawLEAPTAS_COHPOINT",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "COHPOINT_Cloud3",
-						"description": "Copy a file from the source store to the destination store.",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "SpTruncateCOHPOINTTemptable",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "@concat('COHPOINT_cloud0',variables('Cloud3'),'_', formatDateTime(pipeline().TriggerTime, 'yyyy'), formatDateTime(pipeline().TriggerTime, 'MMM'), formatDateTime(pipeline().TriggerTime, 'dd'), '.csv')",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"wildcardFileName": {
-										"value": "@concat('COHPOINT_cloud0',variables('Cloud3'),'_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '.csv')",
-										"type": "Expression"
-									},
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								},
-								"recursive": false
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "branch_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "branch_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "branch_location",
-											"type": "String"
-										},
-										"sink": {
-											"name": "branch_location",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "dse_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "dse_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "dse_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "dse_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "sector",
-											"type": "String"
-										},
-										"sink": {
-											"name": "sector",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_type_code",
-											"type": "String"
-										},
-										"sink": {
-											"name": "channel_type_code",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "coh_month",
-											"type": "String"
-										},
-										"sink": {
-											"name": "coh_month",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "coh_name",
-											"type": "String"
-										},
-										"sink": {
-											"name": "coh_name",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "fb_type",
-											"type": "String"
-										},
-										"sink": {
-											"name": "fb_type",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "norm_wise_target",
-											"type": "String"
-										},
-										"sink": {
-											"name": "norm_wise_target",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "target_retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "target_retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "qualified_retailer_count",
-											"type": "String"
-										},
-										"sink": {
-											"name": "qualified_retailer_count",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "distribution_target",
-											"type": "String"
-										},
-										"sink": {
-											"name": "distribution_target",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "distribution_actual_percentage",
-											"type": "String"
-										},
-										"sink": {
-											"name": "distribution_actual_percentage",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Filename",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Filename",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "DateTime"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Staging_V2_Cloud3",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_TASDestination_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": {
-										"value": "tmpRawLEAPTAS_COHPOINT",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "SpTruncateCOHPOINTTemptable",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[SpTruncateCOHPOINTTemptable]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"Cloud1": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"Cloud2": {
-						"type": "String",
-						"defaultValue": "2"
-					},
-					"Cloud3": {
-						"type": "String",
-						"defaultValue": "3"
-					},
-					"flgFullProcessingPendingcloud1": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgFullProcessingPendingcloud2": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgFullProcessingPendingcloud3": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
