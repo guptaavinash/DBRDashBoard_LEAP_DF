@@ -93,10 +93,6 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'servicePrincipalKey' of 'PnGDCC'"
 		},
-		"PnGDataFoundation_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'PnGDataFoundation'"
-		},
 		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
 			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
@@ -182,6 +178,59 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Send Notification')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Send Failure EMail",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"url": "https://prod-06.eastus2.logic.azure.com:443/workflows/5a488296c4474ca593f4be3afc0679ef/triggers/manual/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=ZMhGXlUFHacBwc8UHzK-pruXajyDxJnWeYziG6qSF_s",
+							"body": {
+								"value": "{\n   \"DataFactoryName\": \"@{pipeline().DataFactory}\",\n   \"PipelineName\": \"@{pipeline().Pipeline}\",\n   \"Subject\": \"@{pipeline().parameters.Subject}\",\n   \"ErrorMessage\": \"@{pipeline().parameters.ErrorMessage}\",\n   \"EmailTo\": \"@{pipeline().parameters.EmailTo}\"\n}\t",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"EmailTo": {
+						"type": "string",
+						"defaultValue": "Avinash@Astix.in,Alok@Astix.in"
+					},
+					"Subject": {
+						"type": "string",
+						"defaultValue": "LEAP File Processing Error"
+					},
+					"ErrorMessage": {
+						"type": "string",
+						"defaultValue": "All Files not Processed"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-10-28T11:18:23Z"
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/Testpipeline1')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -683,20 +732,6 @@
 						"value": "[parameters('PnGDCC_servicePrincipalKey')]"
 					},
 					"tenant": "[parameters('PnGDCC_properties_typeProperties_tenant')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PnGDataFoundation')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "PnGDataFoundation",
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('PnGDataFoundation_connectionString')]"
 				}
 			},
 			"dependsOn": []
