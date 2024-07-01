@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container": {
+			"type": "string",
+			"defaultValue": "hawkeye-pwa"
+		},
+		"HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate": {
+			"type": "string",
+			"defaultValue": "@{formatDateTime(utcNow(),'dd-MMM-yyyy')}"
+		},
 		"LeapFileLoading_At6_properties_LeapDataMovement_WithoutProcessing_parameters_windowStart": {
 			"type": "string",
 			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
@@ -44,6 +52,49 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/HawkeyeDataImport')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "HawkeyeDataImport",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"Container": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_Container')]",
+							"ProcessedDataDate": "[parameters('HawkeyeDataImport_properties_HawkeyeDataImport_parameters_ProcessedDataDate')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2023-07-07T12:26:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								1
+							],
+							"hours": [
+								15,
+								16,
+								17,
+								18,
+								19
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapFileLoading_At6')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -12674,454 +12725,6 @@
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataFocusBrnadProcessing_V2')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "FocusBrandLoading-LEAP-TO-DF",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FocusBrandLoading-LEAP-TO-DF_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "FocusBrandLoading-LEAP-TO-DF",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "spPopulateFactFocusBrandData_PCode",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateFactFocusBrandData_PCode]",
-							"storedProcedureParameters": {
-								"Rptmonthyear": {
-									"value": {
-										"value": "@activity('spGetDFParameterDetail').output.firstRow.RptMonthYear",
-										"type": "Expression"
-									},
-									"type": "Int32"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "Dev_DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "Until1",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "Until 9_00",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('flgCanProcessStart'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "SpGetAstixCubeProcessStatus",
-									"type": "Lookup",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlDWSource",
-											"sqlReaderStoredProcedureName": "[[dbo].[SpGetAstixCubeProcessStatus]",
-											"storedProcedureParameters": {
-												"TypeID": {
-													"type": "Int32",
-													"value": "4"
-												}
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"dataset": {
-											"referenceName": "DataFoundationConnection",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									}
-								},
-								{
-									"name": "If Condition1",
-									"type": "IfCondition",
-									"dependsOn": [
-										{
-											"activity": "SpGetAstixCubeProcessStatus",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@equals(activity('SpGetAstixCubeProcessStatus').output.firstRow.cubereadytoprocess,1 )",
-											"type": "Expression"
-										},
-										"ifTrueActivities": [
-											{
-												"name": "AS_CubeProcess_PCode_Sync_Fact",
-												"type": "ExecutePipeline",
-												"dependsOn": [
-													{
-														"activity": "AS_ResumeandScale_S4",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"policy": {
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"pipeline": {
-														"referenceName": "AS_CubeProcess_Pcode_Sync_Fact_V2",
-														"type": "PipelineReference"
-													},
-													"waitOnCompletion": true,
-													"parameters": {
-														"flgcalled": 1,
-														"TypeID": 4,
-														"processdate": {
-															"value": "@utcnow()",
-															"type": "Expression"
-														}
-													}
-												}
-											},
-											{
-												"name": "AS_ResumeandScale_S4",
-												"type": "ExecutePipeline",
-												"dependsOn": [
-													{
-														"activity": "SpAstixCubeProcessStatusUpd_Start",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"policy": {
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"pipeline": {
-														"referenceName": "AS_ResumeandScale_S4",
-														"type": "PipelineReference"
-													},
-													"waitOnCompletion": true,
-													"parameters": {}
-												}
-											},
-											{
-												"name": "flgCanProcessStart",
-												"type": "SetVariable",
-												"dependsOn": [
-													{
-														"activity": "SpAstixCubeProcessStatusUpd_End",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"policy": {
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "flgCanProcessStart",
-													"value": {
-														"value": "@bool(1)",
-														"type": "Expression"
-													}
-												}
-											},
-											{
-												"name": "SpAstixCubeProcessStatusUpd_Start",
-												"type": "SqlServerStoredProcedure",
-												"dependsOn": [],
-												"policy": {
-													"timeout": "0.12:00:00",
-													"retry": 0,
-													"retryIntervalInSeconds": 30,
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
-													"storedProcedureParameters": {
-														"flgEnd": {
-															"value": "0",
-															"type": "Byte"
-														},
-														"flgStart": {
-															"value": "1",
-															"type": "Byte"
-														},
-														"TypeID": {
-															"value": "4",
-															"type": "Int32"
-														}
-													}
-												},
-												"linkedServiceName": {
-													"referenceName": "DataFoundationDB",
-													"type": "LinkedServiceReference"
-												}
-											},
-											{
-												"name": "SpAstixCubeProcessStatusUpd_End",
-												"type": "SqlServerStoredProcedure",
-												"dependsOn": [
-													{
-														"activity": "AS_CubeProcess_PCode_Sync_Fact",
-														"dependencyConditions": [
-															"Succeeded"
-														]
-													}
-												],
-												"policy": {
-													"timeout": "0.12:00:00",
-													"retry": 0,
-													"retryIntervalInSeconds": 30,
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"storedProcedureName": "[[dbo].[SpAstixCubeProcessStatusUpd]",
-													"storedProcedureParameters": {
-														"flgEnd": {
-															"value": "1",
-															"type": "Byte"
-														},
-														"flgStart": {
-															"value": "1",
-															"type": "Byte"
-														},
-														"TypeID": {
-															"value": "4",
-															"type": "Int32"
-														}
-													}
-												},
-												"linkedServiceName": {
-													"referenceName": "DataFoundationDB",
-													"type": "LinkedServiceReference"
-												}
-											}
-										]
-									}
-								},
-								{
-									"name": "Wait1",
-									"type": "Wait",
-									"dependsOn": [
-										{
-											"activity": "If Condition1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"waitTimeInSeconds": 300
-									}
-								}
-							],
-							"timeout": "0.12:00:00"
-						}
-					},
-					{
-						"name": "DWScaleafterProcessing_V2",
-						"type": "ExecutePipeline",
-						"state": "Inactive",
-						"onInactiveMarkAs": "Succeeded",
-						"dependsOn": [
-							{
-								"activity": "Until1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DWScaleafterProcessing_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "Until 9_00",
-						"type": "Until",
-						"dependsOn": [
-							{
-								"activity": "spPopulateFactFocusBrandData_PCode",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@bool(variables('flgTimeOK'))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "If Condition3",
-									"type": "IfCondition",
-									"dependsOn": [],
-									"userProperties": [],
-									"typeProperties": {
-										"expression": {
-											"value": "@greaterOrEquals(formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'HH:mm:ss'),'09:00:00')",
-											"type": "Expression"
-										},
-										"ifFalseActivities": [
-											{
-												"name": "Wait 5 min",
-												"type": "Wait",
-												"dependsOn": [],
-												"userProperties": [],
-												"typeProperties": {
-													"waitTimeInSeconds": 300
-												}
-											}
-										],
-										"ifTrueActivities": [
-											{
-												"name": "Set variable1",
-												"type": "SetVariable",
-												"dependsOn": [],
-												"policy": {
-													"secureOutput": false,
-													"secureInput": false
-												},
-												"userProperties": [],
-												"typeProperties": {
-													"variableName": "flgTimeOK",
-													"value": {
-														"value": "@bool(1)",
-														"type": "Expression"
-													}
-												}
-											}
-										]
-									}
-								}
-							],
-							"timeout": "0.12:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"variables": {
-					"flgCanProcessStart": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgTimeOK": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
