@@ -13,6 +13,858 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-Staging')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Location",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyAFile",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSBinaryDataSource_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.SourceStore_Location",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.SourceStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "BinaryDataDestination1",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "DeleteAFile",
+									"description": "Delete a file from the source store",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "CopyAFile",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "ADLSBinaryDataSource_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.SourceStore_Location",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.SourceStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AzureBlobFSReadSettings",
+											"recursive": true
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Location": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Location": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-Staging_V2_ZipIssue')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFileList",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Location",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud1_Files",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud1').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyFile_Cloud1",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSDataset_Onefile",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"directory": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_File_V2_Cloud1",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud1",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),contains(item().name,'cloud01'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud2",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),contains(item().name,'cloud02'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud2_Files",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud2",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud2').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyFile_Cloud2",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSDataset_Onefile",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"directory": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_File_V2_Cloud2",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles_Cloud3",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFileList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFileList').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),contains(item().name,'cloud03'))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachFile_Cloud3_Files",
+						"description": "Iterate each file, and move them one by one.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles_Cloud3",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles_Cloud3').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyFile_Cloud3",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSDataset_Onefile",
+											"type": "DatasetReference",
+											"parameters": {
+												"folder": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"directory": {
+													"value": "@pipeline().parameters.DestinationStore_Location",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_File_V2_Cloud3",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Location": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Location": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level4')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFoldername",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Container",
+										"type": "Expression"
+									},
+									"Directory": {
+										"value": "@pipeline().parameters.SourceStore_Directory",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFilename",
+						"description": "Iterate each file ",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFiles').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "CopyAFile",
+									"description": "Copy a file from the source store to the destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"wildcardFileName": "INVVAL*",
+												"deleteFilesAfterCompletion": false
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											},
+											"recursive": false
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "ADLSBinaryDataSource_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.SourceStore_Container",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.SourceStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "DS_dfdatafoundation",
+											"type": "DatasetReference",
+											"parameters": {
+												"Container": {
+													"value": "@pipeline().parameters.DestinationStore_Container",
+													"type": "Expression"
+												},
+												"Directory": {
+													"value": "@pipeline().parameters.DestinationStore_Directory",
+													"type": "Expression"
+												},
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFiles",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFoldername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFoldername').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'File')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Container": {
+						"type": "String"
+					},
+					"SourceStore_Directory": {
+						"type": "String"
+					},
+					"DestinationStore_Container": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:00Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/MoveFiles_Staging-to-Staging')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -9513,1509 +10365,6 @@
 				},
 				"folder": {
 					"name": "Leap Data Pipeline"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SingleFileCopy_RTDXFormat')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "GetFileList",
-						"description": "Get the list of file",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "ADLSDataset_Copy",
-								"type": "DatasetReference",
-								"parameters": {
-									"folder": {
-										"value": "@pipeline().parameters.Folder",
-										"type": "Expression"
-									},
-									"directory": {
-										"value": "@pipeline().parameters.Container",
-										"type": "Expression"
-									}
-								}
-							},
-							"fieldList": [
-								"childItems",
-								"lastModified",
-								"itemName"
-							],
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings",
-								"recursive": true
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "FilterFiles",
-						"description": "Only files will be selected, the source-folders will not be selected.",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "GetFileList",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFileList').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'File')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
-						"name": "ForEachFile",
-						"description": "Iterate each file, and move them one by one.",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "FilterFiles",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('FilterFiles').output.value",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "DPSR",
-									"description": "Copy a file from the source store to the destination store.",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "DelimitedTextSource",
-											"additionalColumns": [
-												{
-													"name": "Filename",
-													"value": {
-														"value": "@item().name",
-														"type": "Expression"
-													}
-												},
-												{
-													"name": "Lastmodifieddatetime",
-													"value": {
-														"value": "@addminutes(utcnow(),330)",
-														"type": "Expression"
-													}
-												}
-											],
-											"storeSettings": {
-												"type": "AzureBlobStorageReadSettings",
-												"recursive": true,
-												"wildcardFolderPath": {
-													"value": "@concat('Site PSR Data/', formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'MM'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'dd'),formatDateTime(pipeline().parameters.ProcessDate, 'MM'),formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/')",
-													"type": "Expression"
-												},
-												"wildcardFileName": {
-													"value": "@item().name",
-													"type": "Expression"
-												},
-												"enablePartitionDiscovery": false
-											},
-											"formatSettings": {
-												"type": "DelimitedTextReadSettings"
-											},
-											"recursive": false
-										},
-										"sink": {
-											"type": "SqlDWSink",
-											"allowPolyBase": true,
-											"polyBaseSettings": {
-												"rejectValue": 0,
-												"rejectType": "value",
-												"useTypeDefault": true
-											}
-										},
-										"enableStaging": true,
-										"stagingSettings": {
-											"linkedServiceName": {
-												"referenceName": "DFPolybaseStagingStorageLink",
-												"type": "LinkedServiceReference"
-											},
-											"path": "polybasestaging"
-										},
-										"translator": {
-											"type": "TabularTranslator",
-											"mappings": [
-												{
-													"source": {
-														"name": "document_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "document_no",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "apply_to_doc",
-														"type": "String"
-													},
-													"sink": {
-														"name": "apply_to_doc",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "document_date",
-														"type": "String"
-													},
-													"sink": {
-														"name": "document_date",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "transaction_type",
-														"type": "String"
-													},
-													"sink": {
-														"name": "transaction_type",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "subbrandform_name",
-														"type": "String"
-													},
-													"sink": {
-														"name": "subbrandform_name",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "prod_name",
-														"type": "String"
-													},
-													"sink": {
-														"name": "prod_name",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "customer_name",
-														"type": "String"
-													},
-													"sink": {
-														"name": "customer_name",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "customer_code",
-														"type": "String"
-													},
-													"sink": {
-														"name": "customer_code",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "channel_description",
-														"type": "String"
-													},
-													"sink": {
-														"name": "channel_description",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "dse",
-														"type": "String"
-													},
-													"sink": {
-														"name": "dse",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "pcode",
-														"type": "String"
-													},
-													"sink": {
-														"name": "pcode",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "customer_type",
-														"type": "String"
-													},
-													"sink": {
-														"name": "customer_type",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "hsn_code",
-														"type": "String"
-													},
-													"sink": {
-														"name": "hsn_code",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "category",
-														"type": "String"
-													},
-													"sink": {
-														"name": "category",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "brand",
-														"type": "String"
-													},
-													"sink": {
-														"name": "brand",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "brandform",
-														"type": "String"
-													},
-													"sink": {
-														"name": "brandform",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "quantity",
-														"type": "String"
-													},
-													"sink": {
-														"name": "quantity",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "gross_value",
-														"type": "String"
-													},
-													"sink": {
-														"name": "gross_value",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "discount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "discount",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "taxable_scheme",
-														"type": "String"
-													},
-													"sink": {
-														"name": "taxable_scheme",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "cgst_amount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "cgsttax",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "sgst_amount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "sgsttax",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "igst_amount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "igsttax",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "cess_amount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "cesstax",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "mracc_code",
-														"type": "String"
-													},
-													"sink": {
-														"name": "mracc_code",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "mracc_desc",
-														"type": "String"
-													},
-													"sink": {
-														"name": "mracc_desc",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "vendor",
-														"type": "String"
-													},
-													"sink": {
-														"name": "vendor",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "net_amount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "net_amount",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tax_on_discount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tax_on_discount",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tax_on_scheme",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tax_on_scheme",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tax_in_rlp",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tax_in_rlp",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "retailing",
-														"type": "String"
-													},
-													"sink": {
-														"name": "retailing",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "gross_in_slp",
-														"type": "String"
-													},
-													"sink": {
-														"name": "gross_in_slp",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "po_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "po_no",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "dse_code",
-														"type": "String"
-													},
-													"sink": {
-														"name": "dse_code",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "msu",
-														"type": "String"
-													},
-													"sink": {
-														"name": "msu",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "reason",
-														"type": "String"
-													},
-													"sink": {
-														"name": "reason",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "distributor_gst_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "dist_gstinno",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "retailer_gst_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "ret_gstinno",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "srn_ref_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "srn_ref_no",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "composite",
-														"type": "String"
-													},
-													"sink": {
-														"name": "composite",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "cgst_rate",
-														"type": "String"
-													},
-													"sink": {
-														"name": "cgsttax_rate",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "sgst_rate",
-														"type": "String"
-													},
-													"sink": {
-														"name": "sgsttax_rate",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "igst_rate",
-														"type": "String"
-													},
-													"sink": {
-														"name": "igsttax_rate",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "cess_rate",
-														"type": "String"
-													},
-													"sink": {
-														"name": "cesstax_rate",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "branch_code",
-														"type": "String"
-													},
-													"sink": {
-														"name": "branch_code",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "branch_name",
-														"type": "String"
-													},
-													"sink": {
-														"name": "branch_name",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "order_mode",
-														"type": "String"
-													},
-													"sink": {
-														"name": "order_mode",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tc_code",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tc_code",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tc_name",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tc_name",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Filename",
-														"type": "String"
-													},
-													"sink": {
-														"name": "Filename",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "Lastmodifieddatetime",
-														"type": "String"
-													},
-													"sink": {
-														"name": "LastModifiedDatetime",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "batch",
-														"type": "String"
-													},
-													"sink": {
-														"name": "batch",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "upc",
-														"type": "String"
-													},
-													"sink": {
-														"name": "upc",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tcs_amount",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tcs_amount",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "remarks",
-														"type": "String"
-													},
-													"sink": {
-														"name": "remarks",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "tcs_rate",
-														"type": "String"
-													},
-													"sink": {
-														"name": "tcs_rate",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "branch_gst_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "branch_gst_no",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "dl_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "dl_no",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "dl_expiry_date",
-														"type": "String"
-													},
-													"sink": {
-														"name": "dl_expiry_date",
-														"type": "String"
-													}
-												},
-												{
-													"source": {
-														"name": "irn_no",
-														"type": "String"
-													},
-													"sink": {
-														"name": "irn_no",
-														"type": "String"
-													}
-												}
-											]
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "ADLSCSVDataSource_Folder_withoutgzip",
-											"type": "DatasetReference",
-											"parameters": {
-												"Container": {
-													"value": "@pipeline().parameters.Container",
-													"type": "Expression"
-												},
-												"Directory": {
-													"value": "@concat('Site PSR Data/', formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'MM'), '/', formatDateTime(pipeline().parameters.ProcessDate, 'dd'),formatDateTime(pipeline().parameters.ProcessDate, 'MM'),formatDateTime(pipeline().parameters.ProcessDate, 'yyyy'), '/')\n",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "DS_DPSR_table",
-											"type": "DatasetReference",
-											"parameters": {}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"Container": {
-						"type": "string"
-					},
-					"Folder": {
-						"type": "string"
-					},
-					"ProcessDate": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SingleFileCopy_WINITCCCR')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CCCR Detail",
-						"description": "Copy a file from the source store to the destination store.",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "@concat('CCRDetail_',pipeline().parameters.ProcessDate,'.csv')",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "Lastmodifieddatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								},
-								"recursive": false
-							},
-							"sink": {
-								"type": "SqlDWSink",
-								"preCopyScript": "TRUNCATE TABLE tmpRawWinit_CCRDetail",
-								"allowPolyBase": true,
-								"polyBaseSettings": {
-									"rejectValue": 0,
-									"rejectType": "value",
-									"useTypeDefault": true
-								},
-								"disableMetricsCollection": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "Site",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Site",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "DistributorName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "DistributorName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDCode",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SubDCode",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SubDName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SubDName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchCode",
-											"type": "String"
-										},
-										"sink": {
-											"name": "BranchCode",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SubD Location",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SubD Location",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "DseCode",
-											"type": "String"
-										},
-										"sink": {
-											"name": "DseCode",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "DseName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "DseName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Date",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Date",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "RouteName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "RouteName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "RetailerCode",
-											"type": "String"
-										},
-										"sink": {
-											"name": "RetailerCode",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "RetailerName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "RetailerName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ContactNumber1",
-											"type": "String"
-										},
-										"sink": {
-											"name": "ContactNumber1",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ContactNumber2",
-											"type": "String"
-										},
-										"sink": {
-											"name": "ContactNumber2",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ChannelName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "ChannelName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SubChannelName",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SubChannelName",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "StartTime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "StartTime",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "EndTime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "EndTime",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "InTime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "InTime",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderValue",
-											"type": "String"
-										},
-										"sink": {
-											"name": "OrderValue",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Productivity",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Productivity",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Reason",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Reason",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SkipReason",
-											"type": "String"
-										},
-										"sink": {
-											"name": "SkipReason",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "VisitLatitude",
-											"type": "String"
-										},
-										"sink": {
-											"name": "VisitLatitude",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "VisitLongitude",
-											"type": "String"
-										},
-										"sink": {
-											"name": "VisitLongitude",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "DeviationInMeter",
-											"type": "String"
-										},
-										"sink": {
-											"name": "DeviationInMeter",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Deviated",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Deviated",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ReasonForDeviation",
-											"type": "String"
-										},
-										"sink": {
-											"name": "ReasonForDeviation",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OnRoute",
-											"type": "String"
-										},
-										"sink": {
-											"name": "OnRoute",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Remarks",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Remarks",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "IsBilled",
-											"type": "String"
-										},
-										"sink": {
-											"name": "IsBilled",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Filename",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Filename",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Lastmodifieddatetime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "String"
-										}
-									}
-								]
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_WINIT_CCCR_Detail",
-								"type": "DatasetReference",
-								"parameters": {
-									"Filename": {
-										"value": "@concat('CCRDetail_',pipeline().parameters.ProcessDate,'.csv')",
-										"type": "Expression"
-									}
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_WINITCCCR_table_Detail",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"ProcessDate": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "WINIT Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SmartBasket-DF-To-TAS-Transfer')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Copy data1",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderQuery": "SELECT * FROM tmpRawSmartBasket",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"preCopyScript": "TRUNCATE TABLE tmpRawSmartBasketData",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false,
-								"disableMetricsCollection": false
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "Branch_Code",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Branch_Code",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Customer_Key",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Customer_Key",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Effective_Month",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Effective_Month",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Product_Key",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Product_Key",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Reco_Qty",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Reco_Qty",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Product_Type",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Product_Type",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Reco_Strategy",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Reco_Strategy",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "New_RecoIdx",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "New_RecoIdx",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Target_Points",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Target_Points",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "FileName",
-											"type": "String",
-											"physicalType": "nvarchar"
-										},
-										"sink": {
-											"name": "FileName",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "FileSetId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										},
-										"sink": {
-											"name": "FileSetId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DataFoundationConnection",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_TAS_tmpRawSmartBasketData",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					},
-					{
-						"name": "Stored procedure1",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "Copy data1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spSmartBasketLoadData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "TASDatabase_Check",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Smart Basket"
 				},
 				"annotations": []
 			},
