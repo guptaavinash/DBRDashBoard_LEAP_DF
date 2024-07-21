@@ -12,6 +12,87 @@
 						"value": "@not(equals(variables('flgFullProcessingPending'), '1'))\n",
 						"type": "Expression"
 					},
+					"activities": [
+						{
+							"name": "GetSBDFileLoadingStatus",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": "[dbo].[SpCheckOverAllSBDFileProcessStatus]",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "DataFoundationConnectionV2",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Set flgFullProcessingPending",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "GetSBDFileLoadingStatus",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "flgFullProcessingPending",
+								"value": {
+									"value": "@string(activity('GetSBDFileLoadingStatus').output.firstRow.flgLoadingDone)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "If Condition1",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "Set flgFullProcessingPending",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(variables('flgFullProcessingPending'),'1')",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Wait 1 min",
+										"type": "Wait",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"waitTimeInSeconds": 60
+										}
+									}
+								]
+							}
+						}
+					],
 					"timeout": "0.12:00:00"
 				}
 			}
