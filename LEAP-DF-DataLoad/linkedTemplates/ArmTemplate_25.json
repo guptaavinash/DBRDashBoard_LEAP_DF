@@ -49516,7 +49516,7 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/Maximus Rurban Split')]",
+			"name": "[concat(parameters('factoryName'), '/Maximus-CDL-Transfer')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -49524,14 +49524,7 @@
 					{
 						"name": "tbltmpRurbanSplit",
 						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "MX-spPopulateStoreListWithTownType",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
+						"dependsOn": [],
 						"policy": {
 							"timeout": "7.00:00:00",
 							"retry": 0,
@@ -49547,15 +49540,15 @@
 								"partitionOption": "None"
 							},
 							"sink": {
-								"type": "SqlDWSink",
-								"preCopyScript": "TRUNCATE TABLE tbltmpRurbanSplit",
-								"allowPolyBase": true,
-								"polyBaseSettings": {
-									"rejectValue": 0,
-									"rejectType": "value",
-									"useTypeDefault": true
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
 								},
-								"disableMetricsCollection": false
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
 							},
 							"enableStaging": true,
 							"stagingSettings": {
@@ -49718,7 +49711,12 @@
 											"type": "String"
 										}
 									}
-								]
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
 							}
 						},
 						"inputs": [
@@ -49730,293 +49728,30 @@
 						],
 						"outputs": [
 							{
-								"referenceName": "DS_tbltmpRurbanSplit",
+								"referenceName": "CSVDataSource_File_withoutGzip_V2",
 								"type": "DatasetReference",
-								"parameters": {}
+								"parameters": {
+									"Container": "maximuscdlstaging",
+									"Folder": " ",
+									"Filename": {
+										"value": "@concat('tbltmpRurbanSplit_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
+										"type": "Expression"
+									}
+								}
 							}
 						]
-					},
-					{
-						"name": "MX-spPopulateStoreListWithTownType",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "MX-spImportForNewStores",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spPopulateStoreListWithTownType]"
-						},
-						"linkedServiceName": {
-							"referenceName": "MaximusDBLink",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "MX-spImportForNewStores",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "Wait 30 min",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "DW_Resume_Scale_V2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spImportForNewStores]"
-						},
-						"linkedServiceName": {
-							"referenceName": "MaximusDBLink",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "DF-spUpdateRurbanSplitInStoreMaster",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "tbltmpRurbanSplit",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spUpdateRurbanSplitInStoreMaster]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "Scale 800 DTU",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale_Maximus",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S7",
-								"tier": "Standard"
-							}
-						}
-					},
-					{
-						"name": "Wait 30 min",
-						"type": "Wait",
-						"dependsOn": [
-							{
-								"activity": "Scale 800 DTU",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"waitTimeInSeconds": 1800
-						}
-					},
-					{
-						"name": "Scale 10 DTU Step1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "MX-spImportForNewStores",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale_Maximus",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S0",
-								"tier": "Standard"
-							}
-						}
-					},
-					{
-						"name": "Scale 10 DTU Step2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "MX-spPopulateStoreListWithTownType",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale_Maximus",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S0",
-								"tier": "Standard"
-							}
-						}
-					},
-					{
-						"name": "Scale 10 DTU Step3",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "tbltmpRurbanSplit",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale_Maximus",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S0",
-								"tier": "Standard"
-							}
-						}
-					},
-					{
-						"name": "Scale 10 DTU Step4",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DF-spUpdateRurbanSplitInStoreMaster",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale_Maximus",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S0",
-								"tier": "Standard"
-							}
-						}
-					},
-					{
-						"name": "Scale 10 DTU Success",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DF-spUpdateRurbanSplitInStoreMaster",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "SQL_Scale_Maximus",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"Scaleval": "S0",
-								"tier": "Standard"
-							}
-						}
-					},
-					{
-						"name": "DW_Resume_Scale_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DW_Resume_Scale_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"ScaleVal": "DW100c",
-								"flgcalled": 1
-							}
-						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Additional Process"
 				},
 				"annotations": []
 			},
