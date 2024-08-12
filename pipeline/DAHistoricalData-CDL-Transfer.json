@@ -4313,34 +4313,6 @@
 							]
 						},
 						{
-							"name": "Wait1",
-							"type": "Wait",
-							"dependsOn": [
-								{
-									"activity": "tmpCDL_BaseTRN_inventorydetails",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								},
-								{
-									"activity": "tmpCDL_BaseTRN_MonthlyActiveStoreList",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								},
-								{
-									"activity": "tmpCDL_BaseTRN_ihrdetails",
-									"dependencyConditions": [
-										"Succeeded"
-									]
-								}
-							],
-							"userProperties": [],
-							"typeProperties": {
-								"waitTimeInSeconds": 1
-							}
-						},
-						{
 							"name": "spCDL_PopulateTables",
 							"type": "SqlServerStoredProcedure",
 							"state": "Inactive",
@@ -6046,6 +6018,8 @@
 						{
 							"name": "tmpCDL_FactSBD_Pcode",
 							"type": "Copy",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "tmpCDL_BaseTRN_MonthlyActiveStoreList",
@@ -6463,6 +6437,8 @@
 						{
 							"name": "tmpCDL_FactStoreLvlSBD_Pcode",
 							"type": "Copy",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [
 								{
 									"activity": "tmpCDL_BaseTRN_inventorydetails",
@@ -6757,6 +6733,177 @@
 										"Folder": " ",
 										"Filename": {
 											"value": "@concat('tmpCDL_FactStoreLvlSBD_Pcode_',item().Rptmonthyear,'.csv')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "tmpCDL_INITSBDCodeMaster",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "tmpCDL_FactStoreLvlSBD_Pcode",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"mappings": [
+										{
+											"source": {
+												"name": "SBDName",
+												"type": "String",
+												"physicalType": "varchar"
+											},
+											"sink": {
+												"name": "SBDName",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "RptMonthYear",
+												"type": "Int32",
+												"physicalType": "int"
+											},
+											"sink": {
+												"name": "RptMonthYear",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "EffectiveFrom",
+												"type": "Int32",
+												"physicalType": "int"
+											},
+											"sink": {
+												"name": "EffectiveFrom",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "EffectiveTo",
+												"type": "Int32",
+												"physicalType": "int"
+											},
+											"sink": {
+												"name": "EffectiveTo",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "FileNameIns",
+												"type": "String",
+												"physicalType": "varchar"
+											},
+											"sink": {
+												"name": "FileNameIns",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "TimeStampIns",
+												"type": "DateTime",
+												"physicalType": "datetime"
+											},
+											"sink": {
+												"name": "TimeStampIns",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "FileNameUpd",
+												"type": "String",
+												"physicalType": "varchar"
+											},
+											"sink": {
+												"name": "FileNameUpd",
+												"type": "String",
+												"physicalType": "String"
+											}
+										},
+										{
+											"source": {
+												"name": "TimeStampUpd",
+												"type": "DateTime",
+												"physicalType": "datetime"
+											},
+											"sink": {
+												"name": "TimeStampUpd",
+												"type": "String",
+												"physicalType": "String"
+											}
+										}
+									],
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DataFoundationConnection_parameter",
+									"type": "DatasetReference",
+									"parameters": {
+										"tablename": "tmpCDL_INITSBDCodeMaster"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "CSVDataSource_File_withoutGzip_V2_pipe",
+									"type": "DatasetReference",
+									"parameters": {
+										"Container": {
+											"value": "dahistoricaldata",
+											"type": "Expression"
+										},
+										"Folder": " ",
+										"Filename": {
+											"value": "@concat('tmpCDL_INITSBDCodeMaster_',item().Rptmonthyear,'.csv')",
 											"type": "Expression"
 										}
 									}
