@@ -10,20 +10,63 @@
 		"SQLServerNCSAstix_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'SQLServerNCSAstix'"
-		},
-		"Swingdbconnection_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'Swingdbconnection'"
-		},
-		"TestTrigger_properties_Testpipeline1_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartBasketCSV_Staging')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "DFLeapTempStorageLink",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "FileConnection"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "smartbasketstaging"
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SmartBasketStorageStagingDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "DFLeapTempStorageLink",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "StagingSource"
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"container": "smartbasketstaging"
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/TASDBConnection')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
@@ -1008,61 +1051,6 @@
 				"connectVia": {
 					"referenceName": "AstixSubD",
 					"type": "IntegrationRuntimeReference"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Swingdbconnection')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "SqlServer",
-				"typeProperties": {
-					"connectionString": "[parameters('Swingdbconnection_connectionString')]"
-				},
-				"connectVia": {
-					"referenceName": "AstixSubD",
-					"type": "IntegrationRuntimeReference"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/TestTrigger')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "Testpipeline1",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"DataProcessDate": "[parameters('TestTrigger_properties_Testpipeline1_parameters_DataProcessDate')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2022-06-12T12:26:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								28
-							],
-							"hours": [
-								0
-							]
-						}
-					}
 				}
 			},
 			"dependsOn": []
