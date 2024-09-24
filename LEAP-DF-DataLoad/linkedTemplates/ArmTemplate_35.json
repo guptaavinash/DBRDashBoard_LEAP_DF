@@ -3313,7 +3313,7 @@
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
-											"activity": "CopyS3-To-Staging-V2",
+											"activity": "spUpdateCCRLoadingStatus_Begin",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -3403,7 +3403,7 @@
 									"type": "ExecutePipeline",
 									"dependsOn": [
 										{
-											"activity": "spProcessDayZeroDataProcessing",
+											"activity": "spUpdateCCRLoadingStatus_End",
 											"dependencyConditions": [
 												"Succeeded"
 											]
@@ -3420,6 +3420,72 @@
 										},
 										"waitOnCompletion": true,
 										"parameters": {}
+									}
+								},
+								{
+									"name": "spUpdateCCRLoadingStatus_Begin",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "CopyS3-To-Staging-V2",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spUpdateCCRLoadingStatus]",
+										"storedProcedureParameters": {
+											"flgStatus": {
+												"value": "0",
+												"type": "Byte"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "TASDatabase_Check",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "spUpdateCCRLoadingStatus_End",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "spProcessDayZeroDataProcessing",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spUpdateCCRLoadingStatus]",
+										"storedProcedureParameters": {
+											"flgStatus": {
+												"value": "1",
+												"type": "Byte"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "TASDatabase_Check",
+										"type": "LinkedServiceReference"
 									}
 								}
 							]
@@ -3526,7 +3592,7 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spRptTAS_AssignmentCompliance]",
+							"storedProcedureName": "[[dbo].[spRptTAS_AssignmentCompliance_MTD]",
 							"storedProcedureParameters": {
 								"ReportDate": {
 									"value": {
