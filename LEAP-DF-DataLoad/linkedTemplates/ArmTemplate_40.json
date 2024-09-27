@@ -61,6 +61,153 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Move files from one folder to another folder",
+				"activities": [
+					{
+						"name": "GetFoldername",
+						"description": "Get the list of file",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ADLSBinaryDataSource_Container",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "@pipeline().parameters.SourceStore_Container",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachFoldername",
+						"description": "Iterate each folder and find the folder or file inside it.",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "FilterFolder",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterFolder').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 20,
+							"activities": [
+								{
+									"name": "inner folder loop",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "MoveADLS-To-dfdatafoundation_Level2",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceStore_Container": {
+												"value": "@pipeline().parameters.SourceStore_Container",
+												"type": "Expression"
+											},
+											"SourceStore_Directory": {
+												"value": "@item().name",
+												"type": "Expression"
+											},
+											"DestinationStore_Container": {
+												"value": "@pipeline().parameters.DestinationStore_Container",
+												"type": "Expression"
+											},
+											"DestinationStore_Directory": {
+												"value": "@pipeline().parameters.DestinationStore_Directory",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "FilterFolder",
+						"description": "Only files will be selected, the source-folders will not be selected.",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetFoldername",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetFoldername').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().type, 'Folder')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"SourceStore_Container": {
+						"type": "String"
+					},
+					"DestinationStore_Container": {
+						"type": "String"
+					},
+					"DestinationStore_Directory": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Other Pipelines"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:39:04Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CCCRDataProcessing')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -5880,189 +6027,6 @@
 				"[concat(variables('factoryId'), '/pipelines/Cloud1Processing')]",
 				"[concat(variables('factoryId'), '/pipelines/Cloud2Processing')]",
 				"[concat(variables('factoryId'), '/pipelines/Cloud3Processing')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MiddleDFProcessing_Step1')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "SpCycleStart",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
-								"storedProcedureParameters": {
-									"flgInOut": {
-										"type": "Byte",
-										"value": "1"
-									}
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "Cloud1Processing_Step1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Cloud1Processing_Step1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataProcessDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "Cloud2Processing_Step1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Cloud2Processing_Step1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataProcessDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "Cloud3Processing_Step1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpCycleStart",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "Cloud3Processing_Step1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DataProcessDate": {
-									"value": "@pipeline().parameters.DataProcessDate",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"flgCloud1LoadingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud2LoadingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud3LoadingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud1ProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud2ProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					},
-					"flgCloud3ProcessingDone": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/Cloud1Processing_Step1')]",
-				"[concat(variables('factoryId'), '/pipelines/Cloud2Processing_Step1')]",
-				"[concat(variables('factoryId'), '/pipelines/Cloud3Processing_Step1')]"
 			]
 		}
 	]
