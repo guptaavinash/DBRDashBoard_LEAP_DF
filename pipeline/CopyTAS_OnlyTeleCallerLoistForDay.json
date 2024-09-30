@@ -1,0 +1,84 @@
+{
+	"name": "CopyTAS_OnlyTeleCallerLoistForDay",
+	"properties": {
+		"activities": [
+			{
+				"name": "tblTAS_TeleCallerListForDay",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[Sp_TAStelecallerlistforday]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobStorageWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "PolybaseLink",
+							"type": "LinkedServiceReference"
+						}
+					},
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_TAS_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"tablename": "tblTeleCallerListForDay_Transfer"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CSVDataSource_File_withoutGzip_V2",
+						"type": "DatasetReference",
+						"parameters": {
+							"Container": {
+								"value": "tascdlstaging",
+								"type": "Expression"
+							},
+							"Folder": " ",
+							"Filename": {
+								"value": "@concat('tblTAS_TeleCallerListForDay_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "NCS"
+		},
+		"annotations": []
+	}
+}
