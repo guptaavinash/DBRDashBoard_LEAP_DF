@@ -42,20 +42,195 @@
 		"LeapStagingFileCleanup_properties_CopyLeapStaging-To-ADLS-AllCloudFiles_parameters_Folder": {
 			"type": "string",
 			"defaultValue": "@{concat('/', formatDateTime(trigger().scheduledTime, 'yyyy'), '/', formatDateTime(trigger().scheduledTime, 'MM'), '/', formatDateTime(trigger().scheduledTime, 'dd'), '/')}"
-		},
-		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart": {
-			"type": "string",
-			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
-		},
-		"S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd": {
-			"type": "string",
-			"defaultValue": "@trigger().scheduledTime"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_HistoricalLoop')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "IfDataforProcess",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetDataForProccesing]",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_COS_table",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachDayProcessing",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "IfDataforProcess",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('IfDataforProcess').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "DailyDataProcessing",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "StartProcess",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "LeapDataMovement_WithoutProcessing",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"windowStart": {
+												"value": "@item().windowstartdate",
+												"type": "Expression"
+											},
+											"windowEnd": {
+												"value": "@item().windowenddate",
+												"type": "Expression"
+											},
+											"DataProcessDate": {
+												"value": "@item().DataDate",
+												"type": "Expression"
+											},
+											"Container": {
+												"value": "@item().container",
+												"type": "Expression"
+											},
+											"Directory": {
+												"value": "@item().directory",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "StartProcess",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpUpdateDataForProccesing]",
+										"storedProcedureParameters": {
+											"flgStep": {
+												"value": "1",
+												"type": "Byte"
+											},
+											"ID": {
+												"value": {
+													"value": "@item().ID",
+													"type": "Expression"
+												},
+												"type": "Int32"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "EndProcess",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "DailyDataProcessing",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpUpdateDataForProccesing]",
+										"storedProcedureParameters": {
+											"flgStep": {
+												"value": "2",
+												"type": "Byte"
+											},
+											"ID": {
+												"value": {
+													"value": "@item().ID",
+													"type": "Expression"
+												},
+												"type": "Int32"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutLoading')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -1810,37 +1985,6 @@
 								23
 							]
 						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/S3LEAPFileTransfer')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "CopyS3-To-Staging",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"windowStart": "[parameters('S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowStart')]",
-							"windowEnd": "[parameters('S3LEAPFileTransfer_properties_CopyS3-To-Staging_parameters_windowEnd')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2021-02-18T09:30:00",
-						"timeZone": "India Standard Time"
 					}
 				}
 			},
