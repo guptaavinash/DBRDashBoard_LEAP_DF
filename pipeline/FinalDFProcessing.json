@@ -398,13 +398,13 @@
 						]
 					},
 					{
-						"activity": "spDailyRefreshSchemeData_Index",
+						"activity": "spRptPopulateDataForTASAbsenteeismDashboard",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "spRptPopulateDataForTASAbsenteeismDashboard",
+						"activity": "If Condition1",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -800,39 +800,6 @@
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
-				}
-			},
-			{
-				"name": "spDailyRefreshSchemeData_Index",
-				"type": "SqlServerStoredProcedure",
-				"dependsOn": [
-					{
-						"activity": "SQL_Scale GP V24",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"storedProcedureName": "[dbo].[spDailyRefreshSchemeData_Index]",
-					"storedProcedureParameters": {
-						"IsFullProcessRunning": {
-							"value": "0",
-							"type": "Byte"
-						}
-					}
-				},
-				"linkedServiceName": {
-					"referenceName": "TASDatabase_Check",
-					"type": "LinkedServiceReference"
 				}
 			},
 			{
@@ -1343,6 +1310,85 @@
 				"linkedServiceName": {
 					"referenceName": "TASDatabase_Check",
 					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "spTASProcessForDay",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SQL_Scale GP V24",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[spTASProcessForDay]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "TASDBConnection",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "spTASProcessForDay",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('spTASProcessForDay').output.firstRow.flgAllow,1)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "spDailyRefreshSchemeData_Index",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[spDailyRefreshSchemeData_Index]",
+								"storedProcedureParameters": {
+									"IsFullProcessRunning": {
+										"value": "0",
+										"type": "Byte"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "TASDatabase_Check",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
 				}
 			}
 		],
