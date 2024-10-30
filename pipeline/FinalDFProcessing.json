@@ -392,13 +392,13 @@
 						]
 					},
 					{
-						"activity": "CopyLeap_Staging-To-DB_COHGAP",
+						"activity": "spRptPopulateDataForTASAbsenteeismDashboard",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "spRptPopulateDataForTASAbsenteeismDashboard",
+						"activity": "SchemeIndex",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -754,29 +754,6 @@
 						"tier": "GeneralPurpose",
 						"flgcalled": 1
 					}
-				}
-			},
-			{
-				"name": "CopyLeap_Staging-To-DB_COHGAP",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "WaitTillPipeline",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "CopyLeap_Staging-To-DB_COHGAP",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true
 				}
 			},
 			{
@@ -1345,7 +1322,7 @@
 				}
 			},
 			{
-				"name": "COHGAP",
+				"name": "SchemeIndex",
 				"type": "IfCondition",
 				"dependsOn": [
 					{
@@ -1389,6 +1366,75 @@
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "COHGAP",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "spTASProcessForDay_1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('spTASProcessForDay_1').output.firstRow.flgAllow,1)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "CopyLeap_Staging-To-DB_COHGAP",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "CopyLeap_Staging-To-DB_COHGAP",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "spTASProcessForDay_1",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "WaitTillPipeline",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[spTASProcessForDay]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "TASDBConnection",
+						"type": "DatasetReference"
+					}
 				}
 			}
 		],
