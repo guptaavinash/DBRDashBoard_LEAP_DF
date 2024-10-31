@@ -13,6 +13,100 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyTAS_OnlyTeleCallerLoistForDay')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "tblTAS_TeleCallerListForDay",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "PolybaseLink",
+									"type": "LinkedServiceReference"
+								}
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_TAS_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"tablename": "tblTeleCallerListForDay_Transfer"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "CSVDataSource_File_withoutGzip_V2",
+								"type": "DatasetReference",
+								"parameters": {
+									"Container": {
+										"value": "tascdlstaging",
+										"type": "Expression"
+									},
+									"Folder": " ",
+									"Filename": {
+										"value": "@concat('tblTAS_TeleCallerListForDay_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "NCS"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyTeleCallerTest')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -29988,59 +30082,6 @@
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DeleteStagingOneFile')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Delete Staging One File",
-						"type": "Delete",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "LeapStorageSourceDataset_File_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"filename": {
-										"value": "@pipeline().parameters.FileName",
-										"type": "Expression"
-									}
-								}
-							},
-							"enableLogging": false,
-							"storeSettings": {
-								"type": "AzureBlobStorageReadSettings",
-								"recursive": true,
-								"enablePartitionDiscovery": false
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"FileName": {
-						"type": "string"
-					}
 				},
 				"folder": {
 					"name": "Leap Data Pipeline"
