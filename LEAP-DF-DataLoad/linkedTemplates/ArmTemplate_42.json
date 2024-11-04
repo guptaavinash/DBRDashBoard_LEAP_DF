@@ -1745,8 +1745,6 @@
 					{
 						"name": "LeapDataProcessing_V2_Step4",
 						"type": "ExecutePipeline",
-						"state": "Inactive",
-						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "FinalCubeProcessing_Container",
@@ -8989,7 +8987,7 @@
 						"type": "Lookup",
 						"dependsOn": [
 							{
-								"activity": "spUpdateFlagForFirstDayProcessing",
+								"activity": "sptmpDeleteMumbaiStorrs",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -9108,10 +9106,51 @@
 								"Step": "4"
 							}
 						}
+					},
+					{
+						"name": "sptmpDeleteMumbaiStorrs",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spUpdateFlagForFirstDayProcessing",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[sptmpDeleteMumbaiStorrs]",
+							"storedProcedureParameters": {
+								"RptMonthYear": {
+									"value": {
+										"value": "@formatDateTime(pipeline().parameters.DataProcessDate, 'yyyyMM')",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					}
 				},
 				"variables": {
 					"flgCOHTimeOK": {
