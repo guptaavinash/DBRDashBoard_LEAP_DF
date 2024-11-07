@@ -29,162 +29,6 @@
 	},
 	"resources": [
 		{
-			"name": "[concat(parameters('factoryName'), '/tblRTDXAugSale')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "TASDatabase",
-					"type": "LinkedServiceReference"
-				},
-				"folder": {
-					"name": "DF_DBConnection/NCS Tables"
-				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [
-					{
-						"name": "BRANCHCODE",
-						"type": "varchar"
-					},
-					{
-						"name": "DSECODE",
-						"type": "varchar"
-					},
-					{
-						"name": "CUSTCODE",
-						"type": "varchar"
-					},
-					{
-						"name": "SRNNO",
-						"type": "varchar"
-					},
-					{
-						"name": "INVNO",
-						"type": "varchar"
-					},
-					{
-						"name": "SRNDATE",
-						"type": "datetime2",
-						"scale": 3
-					},
-					{
-						"name": "SKUCCODE",
-						"type": "varchar"
-					},
-					{
-						"name": "SKUDCODE",
-						"type": "varchar"
-					},
-					{
-						"name": "SKUEANCODE",
-						"type": "varchar"
-					},
-					{
-						"name": "BATCHCODE",
-						"type": "varchar"
-					},
-					{
-						"name": "QTY",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "SELECTEDDATE",
-						"type": "datetime2",
-						"scale": 3
-					},
-					{
-						"name": "TIMESTAMP",
-						"type": "datetime2",
-						"scale": 3
-					},
-					{
-						"name": "GROSSINVAMT",
-						"type": "decimal",
-						"precision": 18,
-						"scale": 2
-					},
-					{
-						"name": "NETINVAMT",
-						"type": "decimal",
-						"precision": 18,
-						"scale": 2
-					},
-					{
-						"name": "LINEDISC",
-						"type": "decimal",
-						"precision": 18,
-						"scale": 2
-					},
-					{
-						"name": "INITDISC",
-						"type": "decimal",
-						"precision": 18,
-						"scale": 2
-					},
-					{
-						"name": "TAXES",
-						"type": "decimal",
-						"precision": 18,
-						"scale": 2
-					},
-					{
-						"name": "UPC",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "RETAILING",
-						"type": "decimal",
-						"precision": 18,
-						"scale": 2
-					},
-					{
-						"name": "BranchId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "ProductId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "FileSetId",
-						"type": "int",
-						"precision": 10
-					},
-					{
-						"name": "flgProcess",
-						"type": "tinyint",
-						"precision": 3
-					},
-					{
-						"name": "Filename",
-						"type": "varchar"
-					},
-					{
-						"name": "LastModifiedDatetime",
-						"type": "smalldatetime",
-						"precision": 16,
-						"scale": 0
-					},
-					{
-						"name": "TimeStampIns",
-						"type": "smalldatetime",
-						"precision": 16,
-						"scale": 0
-					}
-				],
-				"typeProperties": {
-					"schema": "dbo",
-					"table": "tblRTDXAugSale"
-				}
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/tmpDataForrakesh_File')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -13932,6 +13776,428 @@
 				},
 				"folder": {
 					"name": "DF-To-TAS"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AS_CubeProcess_Pcode_Sync_Fact')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "AS_CubeProcess_Pcode_ActivityAPI",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "SpGetCubeDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"httpRequestTimeout": "00:05:00",
+							"url": {
+								"value": "https://*.asazure.windows.net/servers/dbrdashboard/models/PG_DA_Olap_PCodeLvl/refreshes",
+								"type": "Expression"
+							},
+							"body": {
+								"value": "@json(activity('SpGetCubeDetails').output.firstRow.Cubedetails)",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://*.asazure.windows.net"
+							}
+						}
+					},
+					{
+						"name": "GetRefreshId",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "AS_CubeProcess_Pcode_ActivityAPI",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "GET",
+							"headers": {
+								"Content-Type": "application/json"
+							},
+							"httpRequestTimeout": "00:05:00",
+							"url": {
+								"value": "https://*.asazure.windows.net/servers/dbrdashboard/models/PG_DA_Olap_PCodeLvl/refreshes",
+								"type": "Expression"
+							},
+							"body": {
+								"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
+								"type": "Expression"
+							},
+							"authentication": {
+								"type": "MSI",
+								"resource": "https://*.asazure.windows.net"
+							}
+						}
+					},
+					{
+						"name": "Set Array VarOuter",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "GetRefreshId",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "ArrayVar",
+							"value": {
+								"value": "@json(activity('GetRefreshId').output.Response)\n",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Set Status variableOuter",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Set Array VarOuter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "status",
+							"value": {
+								"value": "@variables('ArrayVar')[0].status",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Set RefreshId variable",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Set Status variableOuter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "RefreshId",
+							"value": {
+								"value": "@variables('ArrayVar')[0].refreshId",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [
+							{
+								"activity": "Set RefreshId variable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@not(or(equals(variables('status'),'inProgress'),equals(variables('status'),'notStarted')))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "CubeProcessingCheck",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "GET",
+										"headers": {
+											"Content-Type": "application/json"
+										},
+										"httpRequestTimeout": "00:05:00",
+										"url": {
+											"value": "@concat('https://aspaaseastus2.asazure.windows.net/servers/dbrdashboard/models/PG_DA_Olap_PCodeLvl/refreshes/',variables('RefreshId'))",
+											"type": "Expression"
+										},
+										"body": {
+											"value": "{\"Type\":\"Full\",\"CommitMode\":\"transactional\",\"MaxParallelism\":2,\"RetryCount\":2,\"Objects\":[{\"database\":\"PG_DMS\",\"table\":\"tblFactCFR\",\"partition\":\"PartitionCurrentQuarter_FactCFRData\"},{\"database\":\"PG_DMS\",\"table\":\"tblFactCOS\",\"partition\":\"PartitionCurrentQuarter_FactCOSData\"}]}",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://*.asazure.windows.net"
+										}
+									}
+								},
+								{
+									"name": "Set Array VarOuter_copy1",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "CubeProcessingCheck",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "status",
+										"value": {
+											"value": "@activity('CubeProcessingCheck').output.status",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Set Array VarOuter_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(variables('status'),'inProgress')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Wait5min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 300
+												}
+											}
+										]
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					},
+					{
+						"name": "If Condition1_copy1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "Until1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@not(equals(variables('status'),'succeeded'))",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Send Notification_copy1",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Send Notification",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"EmailTo": "avinash@astix.in,alok@astix.in,phegade.md@pg.com",
+											"Subject": "Cube Fact Processing Successful",
+											"ErrorMessage": "DataFoundation Cube Fact Processing Success"
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "Send Notification",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Send Notification",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"EmailTo": "avinash@astix.in,alok@astix.in,gaurav@astix.in,phegade.md@pg.com",
+											"Subject": "Cube Fact Processing Not Successful",
+											"ErrorMessage": "DataFoundation Cube Fact Processing Fails"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "AS_ResumeandScale_S8",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "If Condition1_copy1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "AS_ResumeandScale_S8",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "SpGetCubeDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpGetCubeDetails]",
+								"storedProcedureParameters": {
+									"CurrentDate": {
+										"type": "DateTime",
+										"value": {
+											"value": "@utcnow()",
+											"type": "Expression"
+										}
+									},
+									"TypeID": {
+										"type": "Int32",
+										"value": "0"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnection",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"flgcalled": {
+						"type": "int",
+						"defaultValue": 1
+					}
+				},
+				"variables": {
+					"ArrayVar": {
+						"type": "Array",
+						"defaultValue": [
+							"test"
+						]
+					},
+					"status": {
+						"type": "String",
+						"defaultValue": "inProgress"
+					},
+					"RefreshId": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Resource Management"
 				},
 				"annotations": []
 			},
