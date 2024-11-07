@@ -9,7 +9,7 @@
 				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
-						"activity": "spSchemeCalculateBestRate_Scheduled_copy1_copy1",
+						"activity": "If Condition1",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -67,8 +67,49 @@
 				}
 			},
 			{
-				"name": "spSchemeCalculateBestRate_Scheduled_copy1_copy1",
-				"type": "SqlServerStoredProcedure",
+				"name": "If Condition1",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "SpGetTASBestRateProcessstatus",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('SpGetTASBestRateProcessstatus').output.firstRow.flgTASloadingcomplete,1)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "spSchemeCalculateBestRate_Scheduled_copy1_copy1",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[spSchemeCalculateBestRate_Scheduled]"
+							},
+							"linkedServiceName": {
+								"referenceName": "TASDatabase_Check",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SpGetTASBestRateProcessstatus",
+				"type": "Lookup",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -79,11 +120,16 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"storedProcedureName": "[dbo].[spSchemeCalculateBestRate_Scheduled]"
-				},
-				"linkedServiceName": {
-					"referenceName": "TASDatabase_Check",
-					"type": "LinkedServiceReference"
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[dbo].[SpGetTASBestRateProcessstatus]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "TASDBConnection",
+						"type": "DatasetReference"
+					}
 				}
 			}
 		],
