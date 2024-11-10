@@ -33,6 +33,332 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_Onefile')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SingleFileCopy_Onefile",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpDeleteOldtmpleapdata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SingleFileCopy_Onefile",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Container": "cntleap",
+								"Folder": {
+									"value": "@concat('/cochinfeb20psr', '/')\n",
+									"type": "Expression"
+								},
+								"ProcessDate": {
+									"value": "@pipeline().parameters.ProcessDate",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "SpDeleteOldtmpleapdata",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[SpDeleteDatafromtmpleaptable]"
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spLoadLeapDPSRIndividualProcess",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "SingleFileCopy_Onefile",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spLoadLeapDPSRIndividualProcess]",
+							"storedProcedureParameters": {
+								"dt": {
+									"value": {
+										"value": "@pipeline().parameters.ProcessDate",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"ProcessDate": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SinglefileDataLoading_RTDXFormat')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_ProcessDate",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderQuery": "SELECT ProcessDate FROM tmpDateDataTobeProcess WHERE flgProcess=0 ORDER BY ProcessDate",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DS_DF_NC_RouteCalendar_SUBD",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachDates",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_ProcessDate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_ProcessDate').output.value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "SingleFileCopy_RTDXFormat",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "SpDeleteOldtmpleapdata",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "SingleFileCopy_RTDXFormat",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"Container": "cntleap",
+											"Folder": {
+												"value": "@concat('Site PSR Data/', formatDateTime(item().ProcessDate, 'yyyy'), '/', formatDateTime(item().ProcessDate, 'MM'), '/', formatDateTime(item().ProcessDate, 'dd'),formatDateTime(item().ProcessDate, 'MM'),formatDateTime(item().ProcessDate, 'yyyy'), '/')\n",
+												"type": "Expression"
+											},
+											"ProcessDate": {
+												"value": "@item().ProcessDate",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "SpDeleteOldtmpleapdata",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpDeleteDatafromtmpleaptable]"
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "spLoadLeapDPSRIndividualProcess",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "SingleFileCopy_RTDXFormat",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[spLoadLeapDPSRIndividualProcess]",
+										"storedProcedureParameters": {
+											"dt": {
+												"value": {
+													"value": "@item().ProcessDate",
+													"type": "Expression"
+												},
+												"type": "DateTime"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/TASDataUpdate')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "RetailerFlagUpdate",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "RetailerFlagUpdate",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "TeleCallerListForDay",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "RetailerFlagUpdate",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "TeleCallerListForDay",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/TASOrderLog')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -236,7 +562,7 @@
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"annotations": [],
-				"runtimeState": "Started",
+				"runtimeState": "Stopped",
 				"pipelines": [
 					{
 						"pipelineReference": {
@@ -251,7 +577,7 @@
 					"recurrence": {
 						"frequency": "Day",
 						"interval": 1,
-						"startTime": "2024-10-31T12:49:00",
+						"startTime": "2024-11-11T12:49:00",
 						"timeZone": "India Standard Time",
 						"schedule": {
 							"minutes": [
@@ -268,6 +594,54 @@
 								15,
 								16,
 								17
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/BestRateCalculationjobUntil11AM')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "CalculateBestRate_DayJob",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2024-11-11T10:34:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0,
+								5,
+								10,
+								15,
+								20,
+								25,
+								30,
+								35,
+								40,
+								45,
+								50,
+								55
+							],
+							"hours": [
+								9,
+								10
 							]
 						}
 					}
@@ -431,309 +805,6 @@
 						}
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/BestRateCalculationjobUntil11AM')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "CalculateBestRate_DayJob",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2024-11-07T10:34:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0,
-								5,
-								10,
-								15,
-								20,
-								25,
-								30,
-								35,
-								40,
-								45,
-								50,
-								55
-							],
-							"hours": [
-								9,
-								10
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud1_SBD')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyS3-To-Staging_Cloud1_SBDMTR_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud1_OneFile_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								},
-								"filename": {
-									"value": "@concat('SBDMTR_cloud01_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'yyyy'),formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'dd'), '.csv.gz')",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyS3-To-Staging_Cloud1_SBDMPG_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud1_OneFile_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								},
-								"filename": {
-									"value": "@concat('SBDMPG_cloud01_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'yyyy'),formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'dd'), '.csv')",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud2_SBD')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyS3-To-Staging_Cloud2_SBDMTR_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud2_OneFile_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								},
-								"filename": {
-									"value": "@concat('SBDMTR_cloud02_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'yyyy'),formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'dd'), '.csv.gz')",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyS3-To-Staging_Cloud2_SBDMPG_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud2_OneFile_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								},
-								"filename": {
-									"value": "@concat('SBDMPG_cloud02_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'yyyy'),formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'dd'), '.csv')",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud3_SBD')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyS3-To-Staging_Cloud3_SBDMTR_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud3_Onefile_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								},
-								"filename": {
-									"value": "@concat('SBDMTR_cloud03_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'yyyy'),formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'dd'), '.csv.gz')",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyS3-To-Staging_Cloud3_SBDMPG_V2",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyS3-To-Staging_Cloud3_Onefile_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"windowStart": {
-									"value": "@pipeline().parameters.windowStart",
-									"type": "Expression"
-								},
-								"windowEnd": {
-									"value": "@pipeline().parameters.windowEnd",
-									"type": "Expression"
-								},
-								"filename": {
-									"value": "@concat('SBDMPG_cloud03_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'yyyy'),formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy'), 'dd'), '.csv')",
-									"type": "Expression"
-								}
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"windowStart": {
-						"type": "string"
-					},
-					"windowEnd": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},
