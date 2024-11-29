@@ -2426,13 +2426,13 @@
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+						"activity": "spPopulateOrderTelecallerListHistoryFromTransferTables",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "spPopulateOrderTelecallerListHistoryFromTransferTables",
+						"activity": "tblTeleCalling_SectorMapping_Transfer",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -3626,6 +3626,102 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "tblTeleCalling_SectorMapping_Transfer",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"allowCopyCommand": true
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "DFPolybaseStagingStorageLink",
+							"type": "LinkedServiceReference"
+						},
+						"path": "polybasestaging"
+					},
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "TeleCallingId",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "TeleCallingId",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"name": "DSECode",
+									"type": "String"
+								},
+								"sink": {
+									"name": "DSECode",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "DSENodeID",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "DSENodeID",
+									"type": "Int32"
+								}
+							},
+							{
+								"source": {
+									"name": "SectorID",
+									"type": "Int32"
+								},
+								"sink": {
+									"name": "SectorID",
+									"type": "Int32"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_TAS_tblTeleCalling_SectorMapping_Transfer",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_tblTeleCalling_SectorMapping_Transfer",
+						"type": "DatasetReference"
+					}
+				]
 			}
 		],
 		"parameters": {
