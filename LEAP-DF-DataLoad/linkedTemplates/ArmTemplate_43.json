@@ -7,6 +7,30 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_DataProcessDate": {
+			"type": "string",
+			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
+		},
+		"LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_Step": {
+			"type": "string",
+			"defaultValue": "2"
+		},
+		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_DataProcessDate": {
+			"type": "string",
+			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
+		},
+		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Container": {
+			"type": "string",
+			"defaultValue": "cntleap"
+		},
+		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Directory": {
+			"type": "string",
+			"defaultValue": "@{concat('/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MM'), '/', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '/')}"
+		},
+		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Step": {
+			"type": "string",
+			"defaultValue": "1"
+		},
 		"NewLeapDataProcessing_properties_LeapDataFullProcessDaily_V2_parameters_DataProcessDate": {
 			"type": "string",
 			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
@@ -28,6 +52,86 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMormningProcessing')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataMorningProcessing_V2",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DataProcessDate": "[parameters('LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_DataProcessDate')]",
+							"Step": "[parameters('LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_Step')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2023-07-07T12:09:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								45
+							],
+							"hours": [
+								5
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LoadLeapOnlyProcessing')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "LeapDataFullProcessDaily_V2_Onlyleapdata",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"DataProcessDate": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_DataProcessDate')]",
+							"Container": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Container')]",
+							"Directory": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Directory')]",
+							"Step": "[parameters('LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Step')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2023-05-14T18:55:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								45
+							],
+							"hours": [
+								2
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataFullProcessDaily_V2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -2412,6 +2516,16 @@
 											"name": "DSECode",
 											"type": "String"
 										}
+									},
+									{
+										"source": {
+											"name": "flgMultipleSectors",
+											"type": "Byte"
+										},
+										"sink": {
+											"name": "flgMultipleSectors",
+											"type": "Byte"
+										}
 									}
 								]
 							}
@@ -2463,13 +2577,13 @@
 						"type": "SqlServerStoredProcedure",
 						"dependsOn": [
 							{
-								"activity": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+								"activity": "spPopulateOrderTelecallerListHistoryFromTransferTables",
 								"dependencyConditions": [
 									"Succeeded"
 								]
 							},
 							{
-								"activity": "spPopulateOrderTelecallerListHistoryFromTransferTables",
+								"activity": "tblTeleCalling_SectorMapping_Transfer",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -3666,6 +3780,105 @@
 								}
 							}
 						}
+					},
+					{
+						"name": "tblTeleCalling_SectorMapping_Transfer",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Copy tblTAS_tmpRAWTeleCallerListForDay",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "SqlDWSink",
+								"allowCopyCommand": true,
+								"copyCommandSettings": {}
+							},
+							"enableStaging": true,
+							"stagingSettings": {
+								"linkedServiceName": {
+									"referenceName": "DFPolybaseStagingStorageLink",
+									"type": "LinkedServiceReference"
+								},
+								"path": "polybasestaging"
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "TeleCallingId",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "TeleCallingId",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "DSECode",
+											"type": "String"
+										},
+										"sink": {
+											"name": "DSECode",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "DSENodeID",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "DSENodeID",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"name": "SectorID",
+											"type": "Int32"
+										},
+										"sink": {
+											"name": "SectorID",
+											"type": "Int32"
+										}
+									}
+								]
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_TAS_tblTeleCalling_SectorMapping_Transfer",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_tblTeleCalling_SectorMapping_Transfer",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
 					}
 				],
 				"policy": {
