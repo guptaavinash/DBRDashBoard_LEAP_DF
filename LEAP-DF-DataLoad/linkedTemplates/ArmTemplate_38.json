@@ -57,6 +57,112 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_WithoutLoading')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyLeapStaging-To-ADLS",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Copy S3 to Staging",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyLeapStaging-To-ADLS",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Directory": {
+									"value": "@concat('/', formatDateTime(pipeline().TriggerTime, 'yyyy'), '/', formatDateTime(pipeline().TriggerTime, 'MM'), '/', formatDateTime(pipeline().TriggerTime, 'dd'), '/')",
+									"type": "Expression"
+								},
+								"Folder": "cntleap"
+							}
+						}
+					},
+					{
+						"name": "Delete Staging Files",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "CopyLeapStaging-To-ADLS",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "LeapStorageSourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					},
+					{
+						"name": "Copy S3 to Staging",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "CopyS3-To-Staging",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2020-12-13T19:05:55Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing-Loop-V2')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1738,322 +1844,6 @@
 						"timeZone": "India Standard Time"
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapCFRFileLoading_Daily')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "CopyLeap_Staging-To-DB_CFR_V2_Cloud1",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpTruncateCFRTempTable_SingleDay_Cloud1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_CFR_V2_Cloud1",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"SetID": {
-									"value": "@pipeline().parameters.SetID",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": "1",
-								"Step": {
-									"value": "@pipeline().parameters.Step",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_CFR_V2_Cloud2",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpTruncateCFRTempTable_SingleDay_Cloud2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_CFR_V2_Cloud2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"SetID": {
-									"value": "@pipeline().parameters.SetID",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": "2",
-								"Step": {
-									"value": "@pipeline().parameters.Step",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "CopyLeap_Staging-To-DB_CFR_V2_Cloud3",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "SpTruncateCFRTempTable_SingleDay_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "CopyLeap_Staging-To-DB_CFR_V2_Cloud3",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"SetID": {
-									"value": "@pipeline().parameters.SetID",
-									"type": "Expression"
-								},
-								"CycleID": {
-									"value": "@pipeline().parameters.CycleID",
-									"type": "Expression"
-								},
-								"DataDate": {
-									"value": "@pipeline().parameters.DataDate",
-									"type": "Expression"
-								},
-								"Cloud": "3",
-								"Step": {
-									"value": "@pipeline().parameters.Step",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "spDataLoadCFRData_Cloud1",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_CFR_V2_Cloud1",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataLoadCFRData_Cloud1]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spDataLoadCFRData_Cloud2",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_CFR_V2_Cloud2",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataLoadCFRData_Cloud2]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "spDataLoadCFRData_Cloud3",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "CopyLeap_Staging-To-DB_CFR_V2_Cloud3",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spDataLoadCFRData_Cloud3]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "SpTruncateCFRTempTable_SingleDay_Cloud1",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[SpTruncateCFRTempTable_SingleDay]",
-							"storedProcedureParameters": {
-								"CloudInstance": {
-									"value": "1",
-									"type": "Byte"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "SpTruncateCFRTempTable_SingleDay_Cloud2",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[SpTruncateCFRTempTable_SingleDay]",
-							"storedProcedureParameters": {
-								"CloudInstance": {
-									"value": "2",
-									"type": "Byte"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "SpTruncateCFRTempTable_SingleDay_Cloud3",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[SpTruncateCFRTempTable_SingleDay]",
-							"storedProcedureParameters": {
-								"CloudInstance": {
-									"value": "3",
-									"type": "Byte"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"SetID": {
-						"type": "int"
-					},
-					"CycleID": {
-						"type": "int"
-					},
-					"DataDate": {
-						"type": "string"
-					},
-					"Step": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
