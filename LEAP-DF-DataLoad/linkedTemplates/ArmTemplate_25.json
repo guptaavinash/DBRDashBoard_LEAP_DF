@@ -13,6 +13,148 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DW_Scale_AfterProcessing')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Until1",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@bool(variables('flgcanproceed'))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Lookup1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(int(activity('Lookup1').output.firstRow.PGCubeProcessStatus),1)",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Wait 5 min",
+												"type": "Wait",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"waitTimeInSeconds": 300
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "DW_Scale",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "DW_Scale_V2",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"Scaleval": {
+															"value": "100DW",
+															"type": "Expression"
+														}
+													}
+												}
+											},
+											{
+												"name": "Set Complete",
+												"type": "SetVariable",
+												"dependsOn": [
+													{
+														"activity": "DW_Scale",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "flgcanproceed",
+													"value": {
+														"value": "@bool(1)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								},
+								{
+									"name": "Lookup1",
+									"type": "Lookup",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlDWSource",
+											"sqlReaderStoredProcedureName": "[[dbo].[SpGetPGCubeProcessStatus]",
+											"queryTimeout": "02:00:00",
+											"partitionOption": "None"
+										},
+										"dataset": {
+											"referenceName": "DataFoundationConnection",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									}
+								}
+							],
+							"timeout": "0.12:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"flgcanproceed": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DataTransfer_Temp_Main')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -6872,41 +7014,6 @@
 					"elapsedTimeMetric": {}
 				},
 				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMovement_CubeProcessing')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "AS_CubeProcess_Sync_Fact",
-						"type": "ExecutePipeline",
-						"dependsOn": [],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "AS_CubeProcess_Sync_Fact",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Leap Data Pipeline"
-				},
-				"annotations": [],
-				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
 			"dependsOn": []
 		}
