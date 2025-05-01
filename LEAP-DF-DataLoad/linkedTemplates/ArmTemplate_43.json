@@ -10886,7 +10886,7 @@
 						"type": "Lookup",
 						"dependsOn": [
 							{
-								"activity": "LoadFile-Staging-To-DB_DRCP",
+								"activity": "SQL_Scale S6 1600 DTU_copy1",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -11694,8 +11694,6 @@
 					{
 						"name": "CopyLeap_Staging-To-DB_COHGAP",
 						"type": "ExecutePipeline",
-						"state": "Inactive",
-						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "WaitTillPipeline",
@@ -11744,8 +11742,6 @@
 					{
 						"name": "spDailyRefreshSchemeData_Index",
 						"type": "SqlServerStoredProcedure",
-						"state": "Inactive",
-						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "SQL_Scale S6 1600 DTU",
@@ -11893,6 +11889,8 @@
 					{
 						"name": "MorningProcessCompleteCheck",
 						"type": "ExecutePipeline",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "DWScaleafterProcessing_V21",
@@ -12030,8 +12028,6 @@
 					{
 						"name": "DWScaleafterProcessing_V21",
 						"type": "ExecutePipeline",
-						"state": "Inactive",
-						"onInactiveMarkAs": "Succeeded",
 						"dependsOn": [
 							{
 								"activity": "AS_ResumeandScale_S9",
@@ -12469,6 +12465,104 @@
 						},
 						"linkedServiceName": {
 							"referenceName": "DataFoundationDB",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "spManageAccess-Stop",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "DW_Scale_500",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[spManageAccess]",
+							"storedProcedureParameters": {
+								"flgAllow": {
+									"value": "0",
+									"type": "Int32"
+								},
+								"strGroupID": {
+									"value": "1^2^",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SQL_Scale S6 1600 DTU_copy1",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "LoadFile-Staging-To-DB_DRCP",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SQL_Scale",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"Scaleval": "S9",
+								"tier": "Standard",
+								"flgcalled": 1
+							}
+						}
+					},
+					{
+						"name": "SpTASBestRateProcess",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "spManageAccess-Allow-TasSeller",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[SpTASBestRateProcess]",
+							"storedProcedureParameters": {
+								"flgTASloadingcomplete": {
+									"value": "1",
+									"type": "Int32"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "TASDatabase_Check",
 							"type": "LinkedServiceReference"
 						}
 					}
