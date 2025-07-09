@@ -71,14 +71,6 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'HawkeyeDBOn67'"
 		},
-		"Leap_AmazonS3_secretAccessKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'secretAccessKey' of 'Leap_AmazonS3'"
-		},
-		"LinkedService_PnGADLS_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'LinkedService_PnGADLS'"
-		},
 		"APIDB_LinkedService_properties_typeProperties_servicePrincipalId": {
 			"type": "string",
 			"defaultValue": "7ec6607e-638a-46bf-9ff0-ea38bacb5ea9"
@@ -142,20 +134,217 @@
 		"HawkEye_LinkedService_properties_typeProperties_tenant": {
 			"type": "string",
 			"defaultValue": "515445df-f272-4c96-aa97-d670cbdeab20"
-		},
-		"Leap_AmazonS3_properties_typeProperties_accessKeyId": {
-			"type": "string",
-			"defaultValue": "AKIAW6LTDL6KHDJLBDO2"
-		},
-		"LinkedService_PnGADLS_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://dfdatafoundationadls.dfs.core.windows.net/"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/SQL_Scale')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "If Condition1",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(pipeline().parameters.flgcalled,1)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "ScaleActivityAPI",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "PUT",
+										"headers": {},
+										"url": "https://management.azure.com/subscriptions/2e023a7b-a46d-4e62-9df0-5adedfa7a8ee/resourceGroups/RG-TAS/providers/Microsoft.Sql/servers/pngtas/databases/db_PG_DMS_TeleCalling?api-version=2021-02-01-preview",
+										"body": {
+											"value": "{\n\tlocation: \"eastus2\",\n    \"sku\": {\n    \"name\": \"@{pipeline().parameters.Scaleval}\",\n    \"tier\": \"@{pipeline().parameters.tier}\"\n    }\n}",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://management.core.windows.net"
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"Scaleval": {
+						"type": "string",
+						"defaultValue": "S7"
+					},
+					"tier": {
+						"type": "string",
+						"defaultValue": "Standard"
+					},
+					"flgcalled": {
+						"type": "int",
+						"defaultValue": 1
+					}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SQL_Scale_Condition')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "If Condition1",
+						"type": "IfCondition",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@contains('0',string(dayOfWeek(utcNow())))",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "ScaleActivityAPI_copy1",
+									"type": "WebActivity",
+									"state": "Inactive",
+									"onInactiveMarkAs": "Succeeded",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "PUT",
+										"headers": {},
+										"url": "https://management.azure.com/subscriptions/15354be3-bb86-4045-a1a1-7bf7d9ba1c31/resourceGroups/DataFoundation/providers/Microsoft.Sql/servers/pgdatafoundation/databases/db_PG_DMS_TeleCalling?api-version=2021-02-01-preview",
+										"body": {
+											"value": "{\n\tlocation: \"eastus2\",\n    \"sku\": {\n    \"name\": \"S6\",\n    \"tier\": \"@{pipeline().parameters.tier}\"\n    }\n}",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://management.core.windows.net"
+										}
+									}
+								},
+								{
+									"name": "ScaleActivityAPI_New",
+									"type": "WebActivity",
+									"dependsOn": [
+										{
+											"activity": "ScaleActivityAPI_copy1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "PUT",
+										"headers": {},
+										"url": "https://management.azure.com/subscriptions/2e023a7b-a46d-4e62-9df0-5adedfa7a8ee/resourceGroups/RG-TAS/providers/Microsoft.Sql/servers/pngtas/databases/db_PG_DMS_TeleCalling?api-version=2021-02-01-preview",
+										"body": {
+											"value": "{\n\tlocation: \"eastus2\",\n    \"sku\": {\n    \"name\": \"GP_Gen5_10\",\n    \"tier\": \"GeneralPurpose\"\n    }\n}",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://management.core.windows.net"
+										}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "ScaleActivityAPI",
+									"type": "WebActivity",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"method": "PUT",
+										"headers": {},
+										"url": "https://management.azure.com/subscriptions/2e023a7b-a46d-4e62-9df0-5adedfa7a8ee/resourceGroups/RG-TAS/providers/Microsoft.Sql/servers/pngtas/databases/db_PG_DMS_TeleCalling?api-version=2021-02-01-preview",
+										"body": {
+											"value": "{\n\tlocation: \"eastus2\",\n    \"sku\": {\n    \"name\": \"GP_Gen5_2\",\n    \"tier\": \"GeneralPurpose\"\n    }\n}\n",
+											"type": "Expression"
+										},
+										"authentication": {
+											"type": "MSI",
+											"resource": "https://management.core.windows.net"
+										}
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"Scaleval": {
+						"type": "string",
+						"defaultValue": "S4"
+					},
+					"tier": {
+						"type": "string",
+						"defaultValue": "Standard"
+					},
+					"flgcalled": {
+						"type": "int",
+						"defaultValue": 1
+					}
+				},
+				"folder": {
+					"name": "Resource Management"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/SQL_Scale_Maximus')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -750,44 +939,6 @@
 				"type": "SqlServer",
 				"typeProperties": {
 					"connectionString": "[parameters('HawkeyeDBOn67_connectionString')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Leap_AmazonS3')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Leap_AmazonS3",
-				"annotations": [],
-				"type": "AmazonS3",
-				"typeProperties": {
-					"serviceUrl": "https://s3.amazonaws.com",
-					"accessKeyId": "[parameters('Leap_AmazonS3_properties_typeProperties_accessKeyId')]",
-					"secretAccessKey": {
-						"type": "SecureString",
-						"value": "[parameters('Leap_AmazonS3_secretAccessKey')]"
-					},
-					"authenticationType": "AccessKey"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LinkedService_PnGADLS')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "LinkedService_PnGADLS",
-				"annotations": [],
-				"type": "AzureBlobFS",
-				"typeProperties": {
-					"url": "[parameters('LinkedService_PnGADLS_properties_typeProperties_url')]",
-					"accountKey": {
-						"type": "SecureString",
-						"value": "[parameters('LinkedService_PnGADLS_accountKey')]"
-					}
 				}
 			},
 			"dependsOn": []
