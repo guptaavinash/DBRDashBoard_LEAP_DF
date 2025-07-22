@@ -13,6 +13,295 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud1_OneFile_V2')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Cloud1FilesMetaData",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "S3LeapDataSet_Cloud1_Folder",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems",
+								"itemName",
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AmazonS3ReadSettings",
+								"recursive": true,
+								"modifiedDatetimeStart": {
+									"value": "@pipeline().parameters.windowStart",
+									"type": "Expression"
+								},
+								"modifiedDatetimeEnd": {
+									"value": "@pipeline().parameters.windowEnd",
+									"type": "Expression"
+								}
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Cloud1FilesFilter",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Cloud1FilesMetaData",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud1FilesMetaData').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'),equals(item().name,pipeline().parameters.filename))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachCloud1FolderFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Cloud1FilesFilter",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Cloud1FilesFilter').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "LeapCSV_Cloud1_Staging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AmazonS3ReadSettings",
+												"recursive": true,
+												"modifiedDatetimeStart": {
+													"value": "@pipeline().parameters.windowStart",
+													"type": "Expression"
+												},
+												"modifiedDatetimeEnd": {
+													"value": "@pipeline().parameters.windowEnd",
+													"type": "Expression"
+												}
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 2
+									},
+									"inputs": [
+										{
+											"referenceName": "S3LeapDataSet_Cloud1_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapStorageSourceDataset_V2_Cloud1",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								},
+								{
+									"name": "DeleteFiles_Cloud1",
+									"type": "Delete",
+									"dependsOn": [
+										{
+											"activity": "LeapCSV_Cloud1_Staging",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										},
+										{
+											"activity": "LeapCSV_Cloud1_CDLStaging",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "S3LeapDataSet_Cloud1_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"enableLogging": false,
+										"storeSettings": {
+											"type": "AmazonS3ReadSettings",
+											"recursive": true
+										}
+									}
+								},
+								{
+									"name": "LeapCSV_Cloud1_CDLStaging",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "BinarySource",
+											"storeSettings": {
+												"type": "AmazonS3ReadSettings",
+												"recursive": true,
+												"modifiedDatetimeStart": {
+													"value": "@pipeline().parameters.windowStart",
+													"type": "Expression"
+												},
+												"modifiedDatetimeEnd": {
+													"value": "@pipeline().parameters.windowEnd",
+													"type": "Expression"
+												}
+											},
+											"formatSettings": {
+												"type": "BinaryReadSettings"
+											}
+										},
+										"sink": {
+											"type": "BinarySink",
+											"storeSettings": {
+												"type": "AzureBlobStorageWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"preserve": [
+											"Attributes"
+										],
+										"validateDataConsistency": false,
+										"dataIntegrationUnits": 2
+									},
+									"inputs": [
+										{
+											"referenceName": "S3LeapDataSet_Cloud1_File",
+											"type": "DatasetReference",
+											"parameters": {
+												"filename": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "LeapCDLInputStorageDataset_V2_Cloud1",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"windowStart": {
+						"type": "string"
+					},
+					"windowEnd": {
+						"type": "string"
+					},
+					"filename": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"filename": {
+						"type": "String"
+					}
+				},
+				"folder": {
+					"name": "Leap Data Pipeline"
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-02-17T07:38:58Z"
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/CopyS3-To-Staging_Cloud1_OneFile_V2_Test')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -7219,1894 +7508,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2020-12-04T18:37:57Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/CopyTAS_ASTIX_To_CDL')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "tblTAS_TeleCallerListForDay_FutureDate",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[Sp_TASelecallerlistforday_futuredate]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblTeleCallerListForDay_FutureDate"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": "tascdlstaging",
-									"Folder": " ",
-									"Filename": {
-										"value": "@concat('tblTAS_TeleCallerListForDay_FutureDate_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "tblTAS_TeleCallerListForDay",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[Sp_TAStelecallerlistforday]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblTeleCallerListForDay_Transfer"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "tascdlstaging",
-										"type": "Expression"
-									},
-									"Folder": " ",
-									"Filename": {
-										"value": "@concat('tblTAS_TeleCallerListForDay_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "Copy Order master",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "OrderID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "OrderID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "OrderCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "VisitID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "VisitID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderDate",
-											"type": "DateTime",
-											"physicalType": "date"
-										},
-										"sink": {
-											"name": "OrderDate",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SalesPersonID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SalesPersonID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SalesPersonType",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "SalesPersonType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "RouteNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "RouteNodeId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "RouteNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "RouteNodeType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "StoreID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "StoreID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotalDeliveryBy",
-											"type": "DateTime",
-											"physicalType": "date"
-										},
-										"sink": {
-											"name": "TotalDeliveryBy",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "Remarks",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "Remarks",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotLineOrderVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotLineOrderVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotLineLevelDisc",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotLineLevelDisc",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotOrderVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotOrderVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotDiscVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotDiscVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotOrderValWDisc",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotOrderValWDisc",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotTaxVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotTaxVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "NetOrderValue",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "NetOrderValue",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "CustomerPONo",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "CustomerPONo",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "CustomerPODate",
-											"type": "DateTime",
-											"physicalType": "date"
-										},
-										"sink": {
-											"name": "CustomerPODate",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgInvoiceOnDelivery",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgInvoiceOnDelivery",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgCollectionOnDelivery",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgCollectionOnDelivery",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FreightRuleID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "FreightRuleID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "CollectionRuleID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "CollectionRuleID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "DlvryRuleID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "DlvryRuleID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "InvRuleID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "InvRuleID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "InsRuleID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "InsRuleID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TaxRuleID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "TaxRuleID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderStatusID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "OrderStatusID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderSourceID",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "OrderSourceID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgOrderClosed",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgOrderClosed",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LoginIDIns",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LoginIDIns",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TimestampIns",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										},
-										"sink": {
-											"name": "TimestampIns",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LoginIDUpd",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LoginIDUpd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TimestampUpd",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										},
-										"sink": {
-											"name": "TimestampUpd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FYID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "FYID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderConfirmationDate",
-											"type": "DateTime",
-											"physicalType": "smalldatetime"
-										},
-										"sink": {
-											"name": "OrderConfirmationDate",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderCompletionDate",
-											"type": "DateTime",
-											"physicalType": "smalldatetime"
-										},
-										"sink": {
-											"name": "OrderCompletionDate",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "strSchemeBenefit",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "strSchemeBenefit",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderInitTag",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "OrderInitTag",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderSeqNo",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "OrderSeqNo",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SalesNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SalesNodeId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SalesNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SalesNodeType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ActAddDisc",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "ActAddDisc",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderLogId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "OrderLogId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgOffline",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgOffline",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrdPrcsId",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "OrdPrcsId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgInvoicePrinted",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgInvoicePrinted",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ReasonId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "ReasonId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ReasonText",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "ReasonText",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderPDAID",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "OrderPDAID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotOtherCharges",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotOtherCharges",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TeleCallingId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "TeleCallingId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchSubdNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BranchSubdNodeId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchSubdNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "BranchSubdNodeType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "CycleId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "CycleId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgSent",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "flgSent",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgOrderSource",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgOrderSource",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotMRPValue",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotMRPValue",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "GPValue",
-											"type": "Int16",
-											"physicalType": "smallint"
-										},
-										"sink": {
-											"name": "GPValue",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FocBndAlrAch",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "FocBndAlrAch",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FocBndNowAch",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "FocBndNowAch",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FocBndSBFOrd",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "FocBndSBFOrd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FocBndSBFQtyOrd",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "FocBndSBFQtyOrd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FocBndSBFValueOrd",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "FocBndSBFValueOrd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SBDSBFOrd",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SBDSBFOrd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SBDTotalGap",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SBDTotalGap",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "GPValueSupplied",
-											"type": "Int16",
-											"physicalType": "smallint"
-										},
-										"sink": {
-											"name": "GPValueSupplied",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "StoreCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "StoreCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchSubDCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "BranchSubDCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "BranchSubDType",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "BranchSubDType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_tblOrderMaster",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": "tascdlstaging",
-									"Folder": " ",
-									"Filename": {
-										"value": "@concat('tblTAS_OrderMaster_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "Copy Order Detail",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "OrderDetailID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "OrderDetailID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "OrderID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "PrdNodeId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "PrdNodeId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "PrdNodeType",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "PrdNodeType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "PrcBatchID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "PrcBatchID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "OrderQty",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "OrderQty",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "PriceTermId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "PriceTermId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ProductRate",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 10,
-											"precision": 18
-										},
-										"sink": {
-											"name": "ProductRate",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LineOrderVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "LineOrderVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotLineDiscVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotLineDiscVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LineOrderValWDisc",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "LineOrderValWDisc",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TaxRefID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "TaxRefID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TaxRate",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TaxRate",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TotTaxValue",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "TotTaxValue",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "NetLineOrderVal",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "NetLineOrderVal",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LoginIDIns",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LoginIDIns",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TimestampIns",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										},
-										"sink": {
-											"name": "TimestampIns",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "LoginIDUpd",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "LoginIDUpd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TimestampUpd",
-											"type": "DateTime",
-											"physicalType": "datetime"
-										},
-										"sink": {
-											"name": "TimestampUpd",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SampleQty",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SampleQty",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SalesUnitId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SalesUnitId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FreeQty",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "FreeQty",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "strSchemeSource",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "strSchemeSource",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgRateChange",
-											"type": "Boolean",
-											"physicalType": "bit"
-										},
-										"sink": {
-											"name": "flgRateChange",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "strBatchPrice",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "strBatchPrice",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "ProductRateBeforeTax",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 10,
-											"precision": 18
-										},
-										"sink": {
-											"name": "ProductRateBeforeTax",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgQuotationApplied",
-											"type": "Boolean",
-											"physicalType": "bit"
-										},
-										"sink": {
-											"name": "flgQuotationApplied",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SalesQuoteDetId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SalesQuoteDetId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "InvLevelDisc",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 18
-										},
-										"sink": {
-											"name": "InvLevelDisc",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgSBDGAP",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgSBDGAP",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgFB",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgFB",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgInitiative",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgInitiative",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "SBDGroupId",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "SBDGroupId",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgSBD",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgSBD",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "FBID",
-											"type": "Int32",
-											"physicalType": "int"
-										},
-										"sink": {
-											"name": "FBID",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "PCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "PCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_tblOrderDetail",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": "tascdlstaging",
-									"Folder": " ",
-									"Filename": {
-										"value": "@concat('tblTAS_OrderDetail_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "tbltelecallerMaster",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[Sp_TASTeleCallerMaster]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "PrimaryBranchCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "PrimaryBranchCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "PrimaryBranchType",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "PrimaryBranchType",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TeleCallerCodeForExtract",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "TeleCallerCodeForExtract",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TeleCallerCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "TeleCallerCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "TeleCallerSupervisorCode",
-											"type": "String",
-											"physicalType": "varchar"
-										},
-										"sink": {
-											"name": "TeleCallerSupervisorCode",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgAbsentee",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgAbsentee",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgF1F2F4",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgF1F2F4",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgD2",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgD2",
-											"type": "String",
-											"physicalType": "String"
-										}
-									},
-									{
-										"source": {
-											"name": "flgD0",
-											"type": "Byte",
-											"physicalType": "tinyint"
-										},
-										"sink": {
-											"name": "flgD0",
-											"type": "String",
-											"physicalType": "String"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblTeleCallerMaster_Transfer"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": "tascdlstaging",
-									"Folder": " ",
-									"Filename": {
-										"value": "@concat('tbltelecallermaster_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					},
-					{
-						"name": "tblTeleCalling_SectorMapping_Transfer",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "tblTAS_TeleCallerListForDay",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "DelimitedTextSink",
-								"storeSettings": {
-									"type": "AzureBlobStorageWriteSettings"
-								},
-								"formatSettings": {
-									"type": "DelimitedTextWriteSettings",
-									"quoteAllText": true,
-									"fileExtension": ".txt"
-								}
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "PolybaseLink",
-									"type": "LinkedServiceReference"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "DS_TAS_table",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tblTeleCalling_SectorMapping_Transfer"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "CSVDataSource_File_withoutGzip_V2",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "tascdlstaging",
-										"type": "Expression"
-									},
-									"Folder": " ",
-									"Filename": {
-										"value": "@concat('tblTeleCalling_SectorMappingTransfer_',formatDateTime(formatDateTime(pipeline().parameters.DataProcessDate,'yyyy-MM-ddTHH:mm:ss'),'yyyyMMdd'),'.csv')\n",
-										"type": "Expression"
-									}
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "NCS"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
