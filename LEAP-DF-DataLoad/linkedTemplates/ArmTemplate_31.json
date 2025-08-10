@@ -13,6 +13,123 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DS_NC_SRN_SUBD_Temp')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "Swingdbconnection",
+					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "SUBD_NCS"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [
+					{
+						"name": "SUBDCODE",
+						"type": "varchar"
+					},
+					{
+						"name": "DSECODE",
+						"type": "varchar"
+					},
+					{
+						"name": "CUSTCODE",
+						"type": "varchar"
+					},
+					{
+						"name": "INVNO",
+						"type": "varchar"
+					},
+					{
+						"name": "INVDATE",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "SKUCCODE",
+						"type": "varchar"
+					},
+					{
+						"name": "SKUDCODE",
+						"type": "varchar"
+					},
+					{
+						"name": "SKUEANCODE",
+						"type": "varchar"
+					},
+					{
+						"name": "BATCHCODE",
+						"type": "varchar"
+					},
+					{
+						"name": "QTY",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "GROSSAMOUNT",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "TAXAMOUNT",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "INITDISC",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "LINEDISC",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "NETAMOUNT",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					},
+					{
+						"name": "INVREF",
+						"type": "varchar"
+					},
+					{
+						"name": "SELECTEDDATE",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					},
+					{
+						"name": "UPC",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "RETAILING",
+						"type": "decimal",
+						"precision": 18,
+						"scale": 2
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tmpSubDSRNForDA"
+				}
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DS_NC_SUBD')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -863,608 +980,6 @@
 						}
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapData_Factforcubeprocessing_V2_01Aug')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "SpMonthStartProcessingCheck",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[SpMonthStartProcessingCheckReverse]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnection",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "If Condition1",
-						"description": "",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "SpMonthStartProcessingCheck",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1)",
-								"type": "Expression"
-							},
-							"ifTrueActivities": [
-								{
-									"name": "spUpdateFactCoverageForTASCalls_PCode",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spUpdateActualInvDetail",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spUpdateFactCoverageForTASCalls_PCode]",
-										"storedProcedureParameters": {
-											"Rptmonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactStoreDistribution_PCode",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spUpdateFactCoverageForTASCalls_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactStoreDistribution_PCode]",
-										"storedProcedureParameters": {
-											"Rptmonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spOLAPProcesStatusUpd_Coverage_Distribution",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spPopulateFactStoreDistribution_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spOLAPProcesStatusUpd]",
-										"storedProcedureParameters": {
-											"JobId": {
-												"value": "6",
-												"type": "Int32"
-											},
-											"OLAP": {
-												"value": "0",
-												"type": "Int32"
-											},
-											"OLTP": {
-												"value": "1",
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactCoverageData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spPopulateFactCOSData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "spPopulateFactSalesData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactCoverageData_PCode]",
-										"storedProcedureParameters": {
-											"Rptmonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spUpdateActualInvDetail",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spPopulateFactCoverageData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spUpdateActualInvDetail]"
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactCOSData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "spAS_PopulateDimTables",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactCOSData_PCode]",
-										"storedProcedureParameters": {
-											"RptMonthYear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactSalesData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "spAS_PopulateDimTables",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactSalesData_PCode]",
-										"storedProcedureParameters": {
-											"Rptmonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactTargetData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "spAS_PopulateDimTables",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactTargetData_PCode]",
-										"storedProcedureParameters": {
-											"RptMonthYear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactInventoryData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "spAS_PopulateDimTables",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactInventoryData_PCode]",
-										"storedProcedureParameters": {
-											"Rptmonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactARData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "spAS_PopulateDimTables",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactARData_PCode]",
-										"storedProcedureParameters": {
-											"RptMonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spPopulateFactOrderData_PCode",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "spAS_PopulateDimTables",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spPopulateFactOrderData_PCode]",
-										"storedProcedureParameters": {
-											"Rptmonthyear": {
-												"value": {
-													"value": "@pipeline().parameters.RptMonthYear",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spOLAPProcesStatusUpd",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "spPopulateFactCOSData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "spPopulateFactSalesData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "spPopulateFactTargetData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "spPopulateFactInventoryData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "spPopulateFactARData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										},
-										{
-											"activity": "spPopulateFactOrderData_PCode",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spOLAPProcesStatusUpd]",
-										"storedProcedureParameters": {
-											"JobId": {
-												"value": "1",
-												"type": "Int32"
-											},
-											"OLAP": {
-												"value": "0",
-												"type": "Int32"
-											},
-											"OLTP": {
-												"value": "1",
-												"type": "Int32"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "SprefreshMaximusphase",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spRefreshMaximusPhase]"
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "spAS_PopulateDimTables",
-									"type": "SqlServerStoredProcedure",
-									"state": "Inactive",
-									"onInactiveMarkAs": "Succeeded",
-									"dependsOn": [
-										{
-											"activity": "SprefreshMaximusphase",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[dbo].[spAS_PopulateDimTables]"
-									},
-									"linkedServiceName": {
-										"referenceName": "Dev_DataFoundationDB",
-										"type": "LinkedServiceReference"
-									}
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"RptMonthYear": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		}
