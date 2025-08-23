@@ -13,6 +13,155 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Until All Set Done",
+						"type": "Until",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@not(greaterOrEquals(variables('NoOFTotalSets'),variables('CurrentSetNo')))",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "LeapDataProcessing-Step1",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "Set Completed",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "LeapDataProcessing-Set",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"CloudInstance": {
+												"value": "@pipeline().parameters.CloudInstance",
+												"type": "Expression"
+											},
+											"Step": {
+												"value": "@variables('CurrentSetNo')",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "Set Completed Count",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "LeapDataProcessing-Step1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "CurrentSetNo",
+										"value": {
+											"value": "@string(add(int(variables('PreviousSetNo')),1))",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Set Completed",
+									"type": "SetVariable",
+									"dependsOn": [],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "PreviousSetNo",
+										"value": {
+											"value": "@variables('CurrentSetNo')",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Set Completed Count_copy1",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "LeapDataProcessing-Step1",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "CurrentSetNo",
+										"value": {
+											"value": "@string(add(int(variables('PreviousSetNo')),1))",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"timeout": "7.00:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"CloudInstance": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"NoOFTotalSets": {
+						"type": "String",
+						"defaultValue": "8"
+					},
+					"CurrentSetNo": {
+						"type": "String",
+						"defaultValue": "1"
+					},
+					"PreviousSetNo": {
+						"type": "String",
+						"defaultValue": "0"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/LeapData_Factandcubeprocessing_V2_backup')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -52057,204 +52206,6 @@
 						"type": "String"
 					},
 					"DestinationStore_Location": {
-						"type": "String"
-					},
-					"DestinationStore_Directory": {
-						"type": "String"
-					}
-				},
-				"folder": {
-					"name": "Other Pipelines"
-				},
-				"annotations": [],
-				"lastPublishTime": "2021-02-17T07:39:00Z"
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/MoveADLS-To-dfdatafoundation_Level4')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "Move files from one folder to another folder",
-				"activities": [
-					{
-						"name": "GetFoldername",
-						"description": "Get the list of file",
-						"type": "GetMetadata",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"dataset": {
-								"referenceName": "ADLSBinaryDataSource_Folder",
-								"type": "DatasetReference",
-								"parameters": {
-									"Container": {
-										"value": "@pipeline().parameters.SourceStore_Container",
-										"type": "Expression"
-									},
-									"Directory": {
-										"value": "@pipeline().parameters.SourceStore_Directory",
-										"type": "Expression"
-									}
-								}
-							},
-							"fieldList": [
-								"childItems"
-							],
-							"storeSettings": {
-								"type": "AzureBlobFSReadSettings",
-								"recursive": true
-							},
-							"formatSettings": {
-								"type": "BinaryReadSettings"
-							}
-						}
-					},
-					{
-						"name": "ForEachFilename",
-						"description": "Iterate each file ",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "FilterFiles",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('FilterFiles').output.value",
-								"type": "Expression"
-							},
-							"batchCount": 20,
-							"activities": [
-								{
-									"name": "CopyAFile",
-									"description": "Copy a file from the source store to the destination store.",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "7.00:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "BinarySource",
-											"storeSettings": {
-												"type": "AzureBlobFSReadSettings",
-												"recursive": true,
-												"wildcardFileName": "INVVAL*",
-												"deleteFilesAfterCompletion": false
-											},
-											"formatSettings": {
-												"type": "BinaryReadSettings"
-											},
-											"recursive": false
-										},
-										"sink": {
-											"type": "BinarySink",
-											"storeSettings": {
-												"type": "AzureBlobStorageWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"validateDataConsistency": false,
-										"dataIntegrationUnits": 0
-									},
-									"inputs": [
-										{
-											"referenceName": "ADLSBinaryDataSource_File",
-											"type": "DatasetReference",
-											"parameters": {
-												"Container": {
-													"value": "@pipeline().parameters.SourceStore_Container",
-													"type": "Expression"
-												},
-												"Directory": {
-													"value": "@pipeline().parameters.SourceStore_Directory",
-													"type": "Expression"
-												},
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "DS_dfdatafoundation",
-											"type": "DatasetReference",
-											"parameters": {
-												"Container": {
-													"value": "@pipeline().parameters.DestinationStore_Container",
-													"type": "Expression"
-												},
-												"Directory": {
-													"value": "@pipeline().parameters.DestinationStore_Directory",
-													"type": "Expression"
-												},
-												"filename": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					},
-					{
-						"name": "FilterFiles",
-						"description": "Only files will be selected, the source-folders will not be selected.",
-						"type": "Filter",
-						"dependsOn": [
-							{
-								"activity": "GetFoldername",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('GetFoldername').output.childItems",
-								"type": "Expression"
-							},
-							"condition": {
-								"value": "@equals(item().type, 'File')",
-								"type": "Expression"
-							}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"SourceStore_Container": {
-						"type": "String"
-					},
-					"SourceStore_Directory": {
-						"type": "String"
-					},
-					"DestinationStore_Container": {
 						"type": "String"
 					},
 					"DestinationStore_Directory": {

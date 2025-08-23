@@ -13,6 +13,61 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/DeleteERStagingOneFile')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Delete ER One File",
+						"type": "Delete",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ERStorageSourceDataset_File",
+								"type": "DatasetReference",
+								"parameters": {
+									"filename": {
+										"value": "@pipeline().parameters.FileName",
+										"type": "Expression"
+									},
+									"folder": " ",
+									"directory": "cntelasticrun"
+								}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/DeleteStagingAllFile')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -3894,155 +3949,6 @@
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Until All Set Done",
-						"type": "Until",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@not(greaterOrEquals(variables('NoOFTotalSets'),variables('CurrentSetNo')))",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "LeapDataProcessing-Step1",
-									"type": "ExecutePipeline",
-									"dependsOn": [
-										{
-											"activity": "Set Completed",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"pipeline": {
-											"referenceName": "LeapDataProcessing-Set",
-											"type": "PipelineReference"
-										},
-										"waitOnCompletion": true,
-										"parameters": {
-											"CloudInstance": {
-												"value": "@pipeline().parameters.CloudInstance",
-												"type": "Expression"
-											},
-											"Step": {
-												"value": "@variables('CurrentSetNo')",
-												"type": "Expression"
-											}
-										}
-									}
-								},
-								{
-									"name": "Set Completed Count",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "LeapDataProcessing-Step1",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "CurrentSetNo",
-										"value": {
-											"value": "@string(add(int(variables('PreviousSetNo')),1))",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "Set Completed",
-									"type": "SetVariable",
-									"dependsOn": [],
-									"policy": {
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "PreviousSetNo",
-										"value": {
-											"value": "@variables('CurrentSetNo')",
-											"type": "Expression"
-										}
-									}
-								},
-								{
-									"name": "Set Completed Count_copy1",
-									"type": "SetVariable",
-									"dependsOn": [
-										{
-											"activity": "LeapDataProcessing-Step1",
-											"dependencyConditions": [
-												"Failed"
-											]
-										}
-									],
-									"policy": {
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"variableName": "CurrentSetNo",
-										"value": {
-											"value": "@string(add(int(variables('PreviousSetNo')),1))",
-											"type": "Expression"
-										}
-									}
-								}
-							],
-							"timeout": "7.00:00:00"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"CloudInstance": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"NoOFTotalSets": {
-						"type": "String",
-						"defaultValue": "8"
-					},
-					"CurrentSetNo": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"PreviousSetNo": {
-						"type": "String",
-						"defaultValue": "0"
-					}
 				},
 				"folder": {
 					"name": "V2 Pipelines"
