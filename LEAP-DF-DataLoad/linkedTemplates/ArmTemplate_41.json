@@ -14,20 +14,206 @@
 		"SBDFileProcessing_properties_SBDLoadingandProcessing_parameters_Step": {
 			"type": "string",
 			"defaultValue": "3"
-		},
-		"LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
-		},
-		"LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_Step": {
-			"type": "string",
-			"defaultValue": "2"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/MiddleDFProcessing')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpCycleStart",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCycEntry]",
+								"storedProcedureParameters": {
+									"flgInOut": {
+										"type": "Byte",
+										"value": "1"
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "Cloud1Processing",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Cloud1Processing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataProcessDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Cloud2Processing",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Cloud2Processing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataProcessDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Cloud3Processing",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "SpCycleStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Cloud3Processing",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {
+								"DataProcessDate": {
+									"value": "@pipeline().parameters.DataProcessDate",
+									"type": "Expression"
+								},
+								"CycleID": {
+									"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+									"type": "Expression"
+								},
+								"Step": {
+									"value": "@pipeline().parameters.Step",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"Step": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"flgCloud1LoadingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud2LoadingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud3LoadingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud1ProcessingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud2ProcessingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					},
+					"flgCloud3ProcessingDone": {
+						"type": "Boolean",
+						"defaultValue": false
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/MiddleDFProcessing_Step1')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -1184,7 +1370,9 @@
 				"annotations": [],
 				"lastPublishTime": "2020-12-13T19:05:55Z"
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMorningProcessing_V2')]",
@@ -1681,7 +1869,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMorningProcessing_V2_05-Mar-2024')]",
@@ -1976,7 +2166,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMorningProcessing_V2_05Dec2023')]",
@@ -2159,7 +2351,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMorningProcessing_V2_13Dec2023')]",
@@ -2342,7 +2536,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMorningProcessing_V2_Check')]",
@@ -2641,7 +2837,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing_V2_Step4')]",
@@ -2845,7 +3043,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/MiddleDFProcessing')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/SBDFileProcessing')]",
@@ -12795,47 +12995,6 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]",
 				"[concat(variables('factoryId'), '/pipelines/SBDLoadingandProcessing')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/LeapDataMormningProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Stopped",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "LeapDataMorningProcessing_V2",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"DataProcessDate": "[parameters('LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_DataProcessDate')]",
-							"Step": "[parameters('LeapDataMormningProcessing_properties_LeapDataMorningProcessing_V2_parameters_Step')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2023-07-07T12:09:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								45
-							],
-							"hours": [
-								5
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/LeapDataMorningProcessing_V2')]"
 			]
 		}
 	]
