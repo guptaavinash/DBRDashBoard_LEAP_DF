@@ -3,30 +3,11 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "SpCheckSBDFileProcessStatus",
+				"name": "Lookup LastDate Of months",
 				"type": "Lookup",
-				"dependsOn": [
-					{
-						"activity": "Cloud3Processing_SBD",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Cloud2Processing_SBD",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					},
-					{
-						"activity": "Cloud1Processing",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"dependsOn": [],
 				"policy": {
-					"timeout": "7.00:00:00",
+					"timeout": "0.12:00:00",
 					"retry": 0,
 					"retryIntervalInSeconds": 30,
 					"secureOutput": false,
@@ -36,22 +17,23 @@
 				"typeProperties": {
 					"source": {
 						"type": "SqlDWSource",
-						"sqlReaderStoredProcedureName": "[dbo].[SpCheckSBDFileProcessStatus]",
+						"sqlReaderStoredProcedureName": "[dbo].[spgethistoricaldatadates]",
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
 					"dataset": {
-						"referenceName": "DataFoundationConnectionV2",
+						"referenceName": "DataFoundationConnection",
 						"type": "DatasetReference"
-					}
+					},
+					"firstRowOnly": false
 				}
 			},
 			{
-				"name": "If SBD File Process",
-				"type": "IfCondition",
+				"name": "ForEach1",
+				"type": "ForEach",
 				"dependsOn": [
 					{
-						"activity": "SpCheckSBDFileProcessStatus",
+						"activity": "Lookup LastDate Of months",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -59,15 +41,177 @@
 				],
 				"userProperties": [],
 				"typeProperties": {
-					"expression": {
-						"value": "@equals(activity('SpCheckSBDFileProcessStatus').output.firstRow.flgProcessingDone,1 )",
+					"items": {
+						"value": "@activity('Lookup LastDate Of months').output.value",
 						"type": "Expression"
 					},
-					"ifTrueActivities": [
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "SpCycleStart",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": "[dbo].[SpCycEntry]",
+									"storedProcedureParameters": {
+										"flgInOut": {
+											"type": "Byte",
+											"value": "1"
+										}
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "DataFoundationConnectionV2",
+									"type": "DatasetReference"
+								}
+							}
+						},
+						{
+							"name": "Cloud1Processing_Historic",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "SpCycleStart",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Cloud1Processing_SBD_Historic",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"DataProcessDate": {
+										"value": "@item().DataDate",
+										"type": "Expression"
+									},
+									"CycleID": {
+										"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+										"type": "Expression"
+									},
+									"Step": {
+										"value": "@pipeline().parameters.Step",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Cloud2Processing_SBD_Historic",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "SpCycleStart",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Cloud2Processing_SBD_Historical",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"DataProcessDate": {
+										"value": "@item().DataDate",
+										"type": "Expression"
+									},
+									"CycleID": {
+										"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+										"type": "Expression"
+									},
+									"Step": {
+										"value": "@pipeline().parameters.Step",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Cloud3Processing_SBD_Historic",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "SpCycleStart",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Cloud3Processing_SBD_Historical",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"DataProcessDate": {
+										"value": "@item().DataDate",
+										"type": "Expression"
+									},
+									"CycleID": {
+										"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+										"type": "Expression"
+									},
+									"Step": {
+										"value": "@pipeline().parameters.Step",
+										"type": "Expression"
+									}
+								}
+							}
+						},
 						{
 							"name": "spDataLoadSBDMasterData_Cloud",
 							"type": "SqlServerStoredProcedure",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "Cloud1Processing_Historic",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Cloud2Processing_SBD_Historic",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "Cloud3Processing_SBD_Historic",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "7.00:00:00",
 								"retry": 0,
@@ -85,148 +229,6 @@
 							}
 						}
 					]
-				}
-			},
-			{
-				"name": "SpCycleStart",
-				"type": "Lookup",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "7.00:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "SqlDWSource",
-						"sqlReaderStoredProcedureName": "[dbo].[SpCycEntry]",
-						"storedProcedureParameters": {
-							"flgInOut": {
-								"type": "Byte",
-								"value": "1"
-							}
-						},
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "DataFoundationConnectionV2",
-						"type": "DatasetReference"
-					}
-				}
-			},
-			{
-				"name": "Cloud1Processing",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "SpCycleStart",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "Cloud1Processing_SBD",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"DataProcessDate": {
-							"value": "@pipeline().parameters.DataProcessDate",
-							"type": "Expression"
-						},
-						"CycleID": {
-							"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-							"type": "Expression"
-						},
-						"Step": {
-							"value": "@pipeline().parameters.Step",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Cloud2Processing_SBD",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "SpCycleStart",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "Cloud2Processing_SBD",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"DataProcessDate": {
-							"value": "@pipeline().parameters.DataProcessDate",
-							"type": "Expression"
-						},
-						"CycleID": {
-							"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-							"type": "Expression"
-						},
-						"Step": {
-							"value": "@pipeline().parameters.Step",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			{
-				"name": "Cloud3Processing_SBD",
-				"type": "ExecutePipeline",
-				"dependsOn": [
-					{
-						"activity": "SpCycleStart",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
-				"policy": {
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"pipeline": {
-						"referenceName": "Cloud3Processing_SBD",
-						"type": "PipelineReference"
-					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"DataProcessDate": {
-							"value": "@pipeline().parameters.DataProcessDate",
-							"type": "Expression"
-						},
-						"CycleID": {
-							"value": "@activity('SpCycleStart').output.firstRow.CycleID",
-							"type": "Expression"
-						},
-						"Step": {
-							"value": "@pipeline().parameters.Step",
-							"type": "Expression"
-						}
-					}
 				}
 			}
 		],
