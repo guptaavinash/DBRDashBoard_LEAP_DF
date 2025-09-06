@@ -3,34 +3,164 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Cloud2Pipeline_SBD_Historical",
-				"type": "ExecutePipeline",
+				"name": "SBDMPG_Cloud2",
+				"description": "Copy a file from the source store to the destination store.",
+				"type": "Copy",
 				"dependsOn": [],
 				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
 					"secureInput": false
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"pipeline": {
-						"referenceName": "Cloud2Pipeline_SBD_Historic",
-						"type": "PipelineReference"
+					"source": {
+						"type": "DelimitedTextSource",
+						"additionalColumns": [
+							{
+								"name": "Filename",
+								"value": {
+									"value": "@concat('SBDMPG_cloud02','_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '.csv')",
+									"type": "Expression"
+								}
+							},
+							{
+								"name": "LastModifiedDatetime",
+								"value": {
+									"value": "@addminutes(utcnow(),330)",
+									"type": "Expression"
+								}
+							},
+							{
+								"name": "FileSetID",
+								"value": {
+									"value": "0",
+									"type": "Expression"
+								}
+							}
+						],
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFileName": {
+								"value": "@concat('SBDMPG_cloud02','_', formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'yyyy'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'MMM'), formatDateTime(convertFromUtc(utcNow(), 'India Standard Time'), 'dd'), '.csv')",
+								"type": "Expression"
+							},
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						},
+						"recursive": false
 					},
-					"waitOnCompletion": true,
-					"parameters": {
-						"DataProcessDate": {
-							"value": "@pipeline().parameters.DataProcessDate",
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": {
+							"value": "TRUNCATE TABLE tmpRawLEAPTAS_SBDMPG_Cloud2",
 							"type": "Expression"
 						},
-						"CycleID": {
-							"value": "@pipeline().parameters.CycleID",
-							"type": "Expression"
+						"allowPolyBase": true,
+						"polyBaseSettings": {
+							"rejectValue": 0,
+							"rejectType": "value",
+							"useTypeDefault": true
 						},
-						"Step": {
-							"value": "@pipeline().parameters.Step",
-							"type": "Expression"
+						"disableMetricsCollection": false
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "DFPolybaseStagingStorageLink",
+							"type": "LinkedServiceReference"
+						},
+						"path": "polybasestaging"
+					},
+					"dataIntegrationUnits": 2,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "sbd_name",
+									"type": "String"
+								},
+								"sink": {
+									"name": "sbd_name",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "distributor_code",
+									"type": "String"
+								},
+								"sink": {
+									"name": "distributor_code",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "branch_code",
+									"type": "String"
+								},
+								"sink": {
+									"name": "branch_code",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "Filename",
+									"type": "String"
+								},
+								"sink": {
+									"name": "Filename",
+									"type": "String"
+								}
+							},
+							{
+								"source": {
+									"name": "LastModifiedDatetime",
+									"type": "String"
+								},
+								"sink": {
+									"name": "LastModifiedDatetime",
+									"type": "DateTime"
+								}
+							},
+							{
+								"source": {
+									"name": "FileSetID",
+									"type": "String"
+								},
+								"sink": {
+									"name": "FileSetID"
+								}
+							}
+						]
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "LeapCSV_Staging_V2_Cloud2",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_Destination_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"tablename": {
+								"value": "tmpRawLEAPTAS_SBDMPG_Cloud2",
+								"type": "Expression"
+							}
 						}
 					}
-				}
+				]
 			}
 		],
 		"parameters": {
