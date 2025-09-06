@@ -1,0 +1,272 @@
+{
+	"name": "SBDLoadingandProcessing_Historical",
+	"properties": {
+		"activities": [
+			{
+				"name": "SpCheckSBDFileProcessStatus",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Cloud3Processing_SBD",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Cloud2Processing_SBD",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Cloud1Processing",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[dbo].[SpCheckSBDFileProcessStatus]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DataFoundationConnectionV2",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "If SBD File Process",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "SpCheckSBDFileProcessStatus",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('SpCheckSBDFileProcessStatus').output.firstRow.flgProcessingDone,1 )",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "spDataLoadSBDMasterData_Cloud",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[dbo].[spDataLoadSBDMasterData_Cloud]"
+							},
+							"linkedServiceName": {
+								"referenceName": "Dev_DataFoundationDB",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SpCycleStart",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[dbo].[SpCycEntry]",
+						"storedProcedureParameters": {
+							"flgInOut": {
+								"type": "Byte",
+								"value": "1"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DataFoundationConnectionV2",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Cloud1Processing",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "SpCycleStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "Cloud1Processing_SBD",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"DataProcessDate": {
+							"value": "@pipeline().parameters.DataProcessDate",
+							"type": "Expression"
+						},
+						"CycleID": {
+							"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+							"type": "Expression"
+						},
+						"Step": {
+							"value": "@pipeline().parameters.Step",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Cloud2Processing_SBD",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "SpCycleStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "Cloud2Processing_SBD",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"DataProcessDate": {
+							"value": "@pipeline().parameters.DataProcessDate",
+							"type": "Expression"
+						},
+						"CycleID": {
+							"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+							"type": "Expression"
+						},
+						"Step": {
+							"value": "@pipeline().parameters.Step",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Cloud3Processing_SBD",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "SpCycleStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "Cloud3Processing_SBD",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"DataProcessDate": {
+							"value": "@pipeline().parameters.DataProcessDate",
+							"type": "Expression"
+						},
+						"CycleID": {
+							"value": "@activity('SpCycleStart').output.firstRow.CycleID",
+							"type": "Expression"
+						},
+						"Step": {
+							"value": "@pipeline().parameters.Step",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"DataProcessDate": {
+				"type": "string"
+			},
+			"Step": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"flgCloud1LoadingDone": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"flgCloud2LoadingDone": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"flgCloud3LoadingDone": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"flgCloud1ProcessingDone": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"flgCloud2ProcessingDone": {
+				"type": "Boolean",
+				"defaultValue": false
+			},
+			"flgCloud3ProcessingDone": {
+				"type": "Boolean",
+				"defaultValue": false
+			}
+		},
+		"folder": {
+			"name": "V2 Pipelines"
+		},
+		"annotations": []
+	}
+}
