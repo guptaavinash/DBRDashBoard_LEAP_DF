@@ -7,6 +7,14 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "LEAP-DF-DataLoad"
 		},
+		"LeapFileTransfer_properties_CopyS3-To-Staging-V2_parameters_windowStart": {
+			"type": "string",
+			"defaultValue": "@adddays(trigger().scheduledTime, -1)"
+		},
+		"LeapFileTransfer_properties_CopyS3-To-Staging-V2_parameters_windowEnd": {
+			"type": "string",
+			"defaultValue": "@trigger().scheduledTime"
+		},
 		"LeapStagingFileCleanup_properties_CopyLeapStaging-To-ADLS-AllCloudFiles_parameters_Directory": {
 			"type": "string",
 			"defaultValue": "cntleap"
@@ -36,6 +44,46 @@
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapFileTransfer')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "CopyS3-To-Staging-V2",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"windowStart": "[parameters('LeapFileTransfer_properties_CopyS3-To-Staging-V2_parameters_windowStart')]",
+							"windowEnd": "[parameters('LeapFileTransfer_properties_CopyS3-To-Staging-V2_parameters_windowEnd')]"
+						}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2022-05-31T05:31:00",
+						"timeZone": "India Standard Time",
+						"schedule": {
+							"minutes": [
+								0,
+								15
+							],
+							"hours": [
+								2
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapStagingFileCleanup')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
@@ -179,195 +227,6 @@
 						"timeZone": "India Standard Time"
 					}
 				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_04Feb26')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "spGetDFParameterDetail",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlDWSource",
-								"sqlReaderStoredProcedureName": "[[dbo].[spGetDFParameterDetail]",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "DataFoundationConnectionV2",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						}
-					},
-					{
-						"name": "PCode_Maximus_Job",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "FinalCubeProcessing_Container",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "PCode_Maximus_Job",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinus1Date": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					{
-						"name": "spScoreCard_PopulateFactTableData",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[dbo].[spScoreCard_PopulateFactTableData]"
-						},
-						"linkedServiceName": {
-							"referenceName": "DataFoundationDB",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "DWScaleafterProcessing_V21",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spScoreCard_PopulateFactTableData",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "MorningProcessCompleteCheck_Container",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "DWScaleafterProcessing_V2",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					},
-					{
-						"name": "FinalCubeProcessing_Container",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "DWScaleafterProcessing_V21",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "FinalCubeProcessing_Container",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {
-								"DMinusOneDate": {
-									"value": "@activity('spGetDFParameterDetail').output.firstRow.DMinusOneDate",
-									"type": "Expression"
-								},
-								"flgcalled": 1
-							}
-						}
-					},
-					{
-						"name": "MorningProcessCompleteCheck_Container",
-						"type": "ExecutePipeline",
-						"dependsOn": [
-							{
-								"activity": "spGetDFParameterDetail",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"pipeline": {
-								"referenceName": "MorningProcessCompleteCheck_Container",
-								"type": "PipelineReference"
-							},
-							"waitOnCompletion": true,
-							"parameters": {}
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"variables": {
-					"flgCOHTimeOK": {
-						"type": "Boolean",
-						"defaultValue": false
-					}
-				},
-				"folder": {
-					"name": "V2 Pipelines"
-				},
-				"annotations": []
 			},
 			"dependsOn": []
 		},
