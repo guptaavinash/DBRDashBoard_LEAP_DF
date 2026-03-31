@@ -5,7 +5,14 @@
 			{
 				"name": "DW_Resume_Scale DW100_V2",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "SpMonthStartProcessingCheck",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -18,14 +25,24 @@
 					"waitOnCompletion": true,
 					"parameters": {
 						"ScaleVal": "DW100c",
-						"flgcalled": 1
+						"flgcalled": {
+							"value": "@activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK",
+							"type": "Expression"
+						}
 					}
 				}
 			},
 			{
 				"name": "AS_ResumeandScale_S4",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "SpMonthStartProcessingCheck",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -36,6 +53,26 @@
 						"type": "PipelineReference"
 					},
 					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "SpMonthStartProcessingCheck",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[dbo].[SpMonthStartProcessingCheck]"
+				},
+				"linkedServiceName": {
+					"referenceName": "Dev_DataFoundationDB",
+					"type": "LinkedServiceReference"
 				}
 			}
 		],
