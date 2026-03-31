@@ -5,11 +5,18 @@
 			{
 				"name": "If Condition1",
 				"type": "IfCondition",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "SpMonthStartProcessingCheck",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@contains('0',string(dayOfWeek(utcNow())))",
+						"value": "@and(equals(activity('SpMonthStartProcessingCheck').output.firstRow.flgProcessOK,1),equals(dayOfWeek(utcNow()), 0))",
 						"type": "Expression"
 					},
 					"ifFalseActivities": [
@@ -100,6 +107,31 @@
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "SpMonthStartProcessingCheck",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[dbo].[SpMonthStartProcessingCheck]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DataFoundationConnection",
+						"type": "DatasetReference"
+					}
 				}
 			}
 		],
