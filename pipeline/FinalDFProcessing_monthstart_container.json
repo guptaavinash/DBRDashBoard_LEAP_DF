@@ -3,71 +3,102 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "If Condition1",
-				"type": "IfCondition",
-				"dependsOn": [
-					{
-						"activity": "SpAstixCubeProcessingStarted",
-						"dependencyConditions": [
-							"Succeeded"
-						]
-					}
-				],
+				"name": "Until Astix Cube Process Not Start",
+				"type": "Until",
+				"dependsOn": [],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@and(\r\n  equals(dayOfMonth(convertFromUtc(utcNow(),'India Standard Time')), 1),\r\n  equals(activity('SpAstixCubeProcessingStarted').output.firstRow.cubeprocessstarted, 1)\r\n)",
+						"value": "@bool(variables('flgCanProcessStart'))",
 						"type": "Expression"
 					},
-					"ifTrueActivities": [
+					"activities": [
 						{
-							"name": "FinalDFProcessing_monthstart",
-							"type": "ExecutePipeline",
+							"name": "If Condition1",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "SpAstixCubeProcessingStarted",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@and(\r\n  equals(dayOfMonth(convertFromUtc(utcNow(),'India Standard Time')), 1),\r\n  equals(activity('SpAstixCubeProcessingStarted').output.firstRow.cubeprocessstarted, 1)\r\n)",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "FinalDFProcessing_monthstart",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "FinalDFProcessing_monthstart",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"DataProcessDate": {
+													"value": "@pipeline().parameters.DataProcessDate",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								]
+							}
+						},
+						{
+							"name": "SpAstixCubeProcessingStarted",
+							"type": "Lookup",
 							"dependsOn": [],
 							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"pipeline": {
-									"referenceName": "FinalDFProcessing_monthstart",
-									"type": "PipelineReference"
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": "[dbo].[SpAstixCubeProcessingStarted]",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
 								},
-								"waitOnCompletion": true,
-								"parameters": {
-									"DataProcessDate": {
-										"value": "@pipeline().parameters.DataProcessDate",
-										"type": "Expression"
-									}
+								"dataset": {
+									"referenceName": "DataFoundationConnectionV2",
+									"type": "DatasetReference"
 								}
 							}
+						},
+						{
+							"name": "Wait1",
+							"type": "Wait",
+							"dependsOn": [
+								{
+									"activity": "If Condition1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 300
+							}
 						}
-					]
-				}
-			},
-			{
-				"name": "SpAstixCubeProcessingStarted",
-				"type": "Lookup",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"source": {
-						"type": "SqlDWSource",
-						"sqlReaderStoredProcedureName": "[dbo].[SpAstixCubeProcessingStarted]",
-						"queryTimeout": "02:00:00",
-						"partitionOption": "None"
-					},
-					"dataset": {
-						"referenceName": "DataFoundationConnectionV2",
-						"type": "DatasetReference"
-					}
+					],
+					"timeout": "0.12:00:00"
 				}
 			}
 		],
