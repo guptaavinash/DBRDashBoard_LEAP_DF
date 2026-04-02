@@ -5,11 +5,18 @@
 			{
 				"name": "If Condition1",
 				"type": "IfCondition",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "SpAstixCubeProcessingStarted",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"userProperties": [],
 				"typeProperties": {
 					"expression": {
-						"value": "@equals(dayOfMonth(convertFromUtc(utcNow(),'India Standard Time')), 1)",
+						"value": "@and(\r\n  equals(dayOfMonth(convertFromUtc(utcNow(),'India Standard Time')), 1),\r\n  equals(activity('SpAstixCubeProcessingStarted').output.firstRow.cubeprocessstarted, 1)\r\n)",
 						"type": "Expression"
 					},
 					"ifTrueActivities": [
@@ -36,6 +43,31 @@
 							}
 						}
 					]
+				}
+			},
+			{
+				"name": "SpAstixCubeProcessingStarted",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[dbo].[SpAstixCubeProcessingStarted]",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "DataFoundationConnectionV2",
+						"type": "DatasetReference"
+					}
 				}
 			}
 		],
