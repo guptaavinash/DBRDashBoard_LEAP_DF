@@ -30,16 +30,216 @@
 		"LoadLeapOnlyProcessing_properties_LeapDataFullProcessDaily_V2_Onlyleapdata_parameters_Step": {
 			"type": "string",
 			"defaultValue": "1"
-		},
-		"SBDFileProcessing_properties_SBDLoadingandProcessing_Container_parameters_DataProcessDate": {
-			"type": "string",
-			"defaultValue": "@{convertFromUtc(utcNow(), 'India Standard Time','dd-MMM-yyyy')}"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LeapDataProcessing_V2_Step4')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SpCheckAllFileProcessStatus",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlDWSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[SpCheckAllFileProcessStatus]",
+								"storedProcedureParameters": {
+									"Step": {
+										"type": "Byte",
+										"value": {
+											"value": "4",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "DataFoundationConnectionV2",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "If All Final Table Loaded",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "SpCheckAllFileProcessStatus",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(activity('SpCheckAllFileProcessStatus').output.firstRow.flgProcessingDone,1 )",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "Send Notification",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Send Notification",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {}
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "MiddleDFProcessing",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "SpDAProcessStatusUpdate_Start",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "MiddleDFProcessing",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"DataProcessDate": {
+												"value": "@pipeline().parameters.DataProcessDate",
+												"type": "Expression"
+											},
+											"Step": {
+												"value": "@pipeline().parameters.Step",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "SpDAProcessStatusUpdate_Start",
+									"type": "SqlServerStoredProcedure",
+									"state": "Inactive",
+									"onInactiveMarkAs": "Succeeded",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpDAProcessStatusUpdate]",
+										"storedProcedureParameters": {
+											"flgStatus": {
+												"value": "1",
+												"type": "Byte"
+											},
+											"ProcessID": {
+												"value": "2",
+												"type": "Int32"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								},
+								{
+									"name": "SpDAProcessStatusUpdate_End",
+									"type": "SqlServerStoredProcedure",
+									"state": "Inactive",
+									"onInactiveMarkAs": "Succeeded",
+									"dependsOn": [
+										{
+											"activity": "MiddleDFProcessing",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[SpDAProcessStatusUpdate]",
+										"storedProcedureParameters": {
+											"flgStatus": {
+												"value": "2",
+												"type": "Byte"
+											},
+											"ProcessID": {
+												"value": "2",
+												"type": "Int32"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "DataFoundationDB",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"DataProcessDate": {
+						"type": "string"
+					},
+					"Step": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "V2 Pipelines"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/SBDLoadingandProcessing_Container')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -1818,7 +2018,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_07Jan26')]",
@@ -3462,7 +3664,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_09Sep2025')]",
@@ -5062,7 +5266,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_22Jan26')]",
@@ -6712,7 +6918,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_25Sep2025')]",
@@ -8065,7 +8273,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_26Sep2025')]",
@@ -9679,7 +9889,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_28Nov2025')]",
@@ -11361,7 +11573,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_28Oct2025')]",
@@ -13005,7 +13219,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_29Aug2025')]",
@@ -14603,7 +14819,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_29Dec2025')]",
@@ -16277,7 +16495,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_29Oct2025')]",
@@ -17921,7 +18141,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_AfterTasProcessing')]",
@@ -18300,7 +18522,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_TASOnly')]",
@@ -19882,7 +20106,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_monthstart')]",
@@ -21634,7 +21860,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_monthstart_01Dec2025')]",
@@ -23393,7 +23621,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/FinalDFProcessing_monthstart_01june')]",
@@ -25114,7 +25344,9 @@
 				},
 				"annotations": []
 			},
-			"dependsOn": []
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/LeapDataProcessing_V2_Step4')]"
+			]
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/LeapDataMormningProcessing')]",
@@ -25195,46 +25427,6 @@
 				}
 			},
 			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/SBDFileProcessing')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "SBDLoadingandProcessing_Container",
-							"type": "PipelineReference"
-						},
-						"parameters": {
-							"DataProcessDate": "[parameters('SBDFileProcessing_properties_SBDLoadingandProcessing_Container_parameters_DataProcessDate')]"
-						}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Day",
-						"interval": 1,
-						"startTime": "2025-03-11T13:04:00",
-						"timeZone": "India Standard Time",
-						"schedule": {
-							"minutes": [
-								0
-							],
-							"hours": [
-								13
-							]
-						}
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/SBDLoadingandProcessing_Container')]"
-			]
 		}
 	]
 }
