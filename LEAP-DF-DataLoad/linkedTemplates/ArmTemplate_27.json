@@ -160,6 +160,44 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/LeapCSV_Staging_V2_Cloud1_Dyn')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "DFLeapTempStorageLink",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"filename": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "FileConnection"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().filename",
+							"type": "Expression"
+						},
+						"folderPath": "Cloud1",
+						"container": "leapstaging"
+					},
+					"columnDelimiter": "|",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/APIDataFileGeneration')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -16602,7 +16640,7 @@
 									"type": "AzureBlobStorageReadSettings",
 									"recursive": true,
 									"wildcardFileName": {
-										"value": "SBDMPG_cloud01_2026May25.csv",
+										"value": "@concat('SBDMPG_cloud01','_', formatDateTime(pipeline().parameters.DataProcessDate, 'yyyy'), formatDateTime(pipeline().parameters.DataProcessDate, 'MMM'), formatDateTime(pipeline().parameters.DataProcessDate, 'dd'), '.csv')",
 										"type": "Expression"
 									},
 									"enablePartitionDiscovery": false
@@ -16614,6 +16652,10 @@
 							},
 							"sink": {
 								"type": "SqlDWSink",
+								"preCopyScript": {
+									"value": "TRUNCATE TABLE tmpDGBRebase_RawLEAPTAS_SBDMPG_Cloud1",
+									"type": "Expression"
+								},
 								"disableMetricsCollection": false
 							},
 							"enableStaging": true,
@@ -16624,7 +16666,7 @@
 								},
 								"path": "polybasestaging"
 							},
-							"dataIntegrationUnits": 2,
+							"dataIntegrationUnits": 4,
 							"translator": {
 								"type": "TabularTranslator",
 								"mappings": [
@@ -16717,7 +16759,10 @@
 								"referenceName": "DS_Destination_table_newdb",
 								"type": "DatasetReference",
 								"parameters": {
-									"tablename": "tmpDGBRebase_RawLEAPTAS_SBDMPG_Cloud1"
+									"tablename": {
+										"value": "tmpDGBRebase_RawLEAPTAS_SBDMPG_Cloud1",
+										"type": "Expression"
+									}
 								}
 							}
 						]
@@ -16765,7 +16810,7 @@
 									"type": "AzureBlobStorageReadSettings",
 									"recursive": true,
 									"wildcardFileName": {
-										"value": "SBDMTR_cloud01_2026May25.csv.gz",
+										"value": "@concat('SBDMTR_cloud01','_', formatDateTime(pipeline().parameters.DataProcessDate, 'yyyy'), formatDateTime(pipeline().parameters.DataProcessDate, 'MMM'), formatDateTime(pipeline().parameters.DataProcessDate, 'dd'), '.csv.gz')",
 										"type": "Expression"
 									},
 									"enablePartitionDiscovery": false
@@ -16777,6 +16822,10 @@
 							},
 							"sink": {
 								"type": "SqlDWSink",
+								"preCopyScript": {
+									"value": "TRUNCATE TABLE tmpDGBRebase_RawLEAPTAS_SBDMTR_Cloud1",
+									"type": "Expression"
+								},
 								"disableMetricsCollection": false
 							},
 							"enableStaging": true,
@@ -16964,7 +17013,10 @@
 								"referenceName": "DS_Destination_table_newdb",
 								"type": "DatasetReference",
 								"parameters": {
-									"tablename": "tmpDGBRebase_RawLEAPTAS_SBDMTR_Cloud1"
+									"tablename": {
+										"value": "tmpDGBRebase_RawLEAPTAS_SBDMTR_Cloud1",
+										"type": "Expression"
+									}
 								}
 							}
 						]
@@ -17070,6 +17122,7 @@
 							},
 							"sink": {
 								"type": "SqlDWSink",
+								"preCopyScript": "TRUNCATE TABLE tmpDGBRebase_RawLEAPTAS_SBDMPG_Cloud2",
 								"disableMetricsCollection": false
 							},
 							"enableStaging": true,
@@ -17233,6 +17286,7 @@
 							},
 							"sink": {
 								"type": "SqlDWSink",
+								"preCopyScript": "TRUNCATE TABLE tmpDGBRebase_RawLEAPTAS_SBDMTR_Cloud2",
 								"disableMetricsCollection": false
 							},
 							"enableStaging": true,
@@ -17421,462 +17475,6 @@
 								"type": "DatasetReference",
 								"parameters": {
 									"tablename": "tmpDGBRebase_RawLEAPTAS_SBDMTR_Cloud2"
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"DataProcessDate": {
-						"type": "string"
-					},
-					"CycleID": {
-						"type": "string"
-					},
-					"Step": {
-						"type": "string"
-					}
-				},
-				"variables": {
-					"flgFullProcessingPending": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"MaxNoofCheck": {
-						"type": "String",
-						"defaultValue": "20"
-					},
-					"CurrentCountNoofCheck": {
-						"type": "String",
-						"defaultValue": "1"
-					},
-					"PreviousCountNoofCheck": {
-						"type": "String",
-						"defaultValue": "0"
-					}
-				},
-				"folder": {
-					"name": "SBD Processing"
-				},
-				"annotations": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Cloud3Processing_SBD_Historical')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "SBDMPG_Cloud3",
-						"description": "Copy a file from the source store to the destination store.",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "@concat('SBDMPG_cloud03','_', formatDateTime(pipeline().parameters.DataProcessDate, 'yyyy'), formatDateTime(pipeline().parameters.DataProcessDate, 'MMM'), formatDateTime(pipeline().parameters.DataProcessDate, 'dd'), '.csv')",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "FileSetID",
-										"value": {
-											"value": "0",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"wildcardFileName": {
-										"value": "@concat('SBDMPG_cloud03','_', formatDateTime(pipeline().parameters.DataProcessDate, 'yyyy'), formatDateTime(pipeline().parameters.DataProcessDate, 'MMM'), formatDateTime(pipeline().parameters.DataProcessDate, 'dd'), '.csv')",
-										"type": "Expression"
-									},
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								},
-								"recursive": false
-							},
-							"sink": {
-								"type": "SqlDWSink",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"dataIntegrationUnits": 2,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "sbd_name",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "sbd_name",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "distributor_code",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "distributor_code",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "branch_code",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "branch_code",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "FileSetID",
-											"type": "String"
-										},
-										"sink": {
-											"name": "FileSetId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									},
-									{
-										"source": {
-											"name": "Filename",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Filename",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Staging_V2_Cloud3",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Destination_table_newdb",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tmpDGBRebase_RawLEAPTAS_SBDMPG_Cloud3"
-								}
-							}
-						]
-					},
-					{
-						"name": "SBDMTR_Cloud3",
-						"description": "Copy a file from the source store to the destination store.",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "7.00:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"additionalColumns": [
-									{
-										"name": "Filename",
-										"value": {
-											"value": "@concat('SBDMTR_cloud03','_', formatDateTime(pipeline().parameters.DataProcessDate, 'yyyy'), formatDateTime(pipeline().parameters.DataProcessDate, 'MMM'), formatDateTime(pipeline().parameters.DataProcessDate, 'dd'), '.csv.gz')",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "LastModifiedDatetime",
-										"value": {
-											"value": "@addminutes(utcnow(),330)",
-											"type": "Expression"
-										}
-									},
-									{
-										"name": "FileSetID",
-										"value": {
-											"value": "0",
-											"type": "Expression"
-										}
-									}
-								],
-								"storeSettings": {
-									"type": "AzureBlobStorageReadSettings",
-									"recursive": true,
-									"wildcardFileName": {
-										"value": "@concat('SBDMTR_cloud03','_', formatDateTime(pipeline().parameters.DataProcessDate, 'yyyy'), formatDateTime(pipeline().parameters.DataProcessDate, 'MMM'), formatDateTime(pipeline().parameters.DataProcessDate, 'dd'), '.csv.gz')",
-										"type": "Expression"
-									},
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								},
-								"recursive": false
-							},
-							"sink": {
-								"type": "SqlDWSink",
-								"disableMetricsCollection": false
-							},
-							"enableStaging": true,
-							"stagingSettings": {
-								"linkedServiceName": {
-									"referenceName": "DFPolybaseStagingStorageLink",
-									"type": "LinkedServiceReference"
-								},
-								"path": "polybasestaging"
-							},
-							"dataIntegrationUnits": 2,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "sbd_name",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "sbd_name",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_code",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "channel_code",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "channel_name",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "channel_name",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "group_code",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "group_code",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "sbf_code",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "sbf_code",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "sbf_name",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "sbf_name",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "moq",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "moq",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "effective_from",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "effective_from",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "effective_to",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "effective_to",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "is_base",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "is_base",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "FileSetID",
-											"type": "String"
-										},
-										"sink": {
-											"name": "FileSetId",
-											"type": "Int64",
-											"physicalType": "bigint"
-										}
-									},
-									{
-										"source": {
-											"name": "Filename",
-											"type": "String"
-										},
-										"sink": {
-											"name": "Filename",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									},
-									{
-										"source": {
-											"name": "LastModifiedDatetime",
-											"type": "String"
-										},
-										"sink": {
-											"name": "LastModifiedDatetime",
-											"type": "String",
-											"physicalType": "varchar"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "LeapCSV_Staging_GZIP_V2_Cloud3",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "DS_Destination_table_newdb",
-								"type": "DatasetReference",
-								"parameters": {
-									"tablename": "tmpDGBRebase_RawLEAPTAS_SBDMTR_Cloud3"
 								}
 							}
 						]
